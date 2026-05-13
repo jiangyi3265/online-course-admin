@@ -26,7 +26,7 @@
 ## 快速启动
 
 ```powershell
-# 先启动 online-course-backend，默认监听 8080
+# 先启动 online-course-backend，默认监听 8007
 npm install
 npm run dev
 ```
