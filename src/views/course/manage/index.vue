@@ -127,7 +127,7 @@
                 <el-form-item label="课程ID">
                   <el-input v-model="orderForm.courseId" placeholder="如 gk-math-full" style="width: 180px" />
                 </el-form-item>
-                <el-form-item label="卡密">
+                <el-form-item label="激活码">
                   <el-input v-model="orderForm.cardCode" placeholder="可选" style="width: 180px" />
                 </el-form-item>
                 <el-form-item>
@@ -161,7 +161,7 @@
             <el-table-column prop="id" label="记录号" min-width="160" />
             <el-table-column prop="userName" label="用户" width="120" />
             <el-table-column prop="courseTitle" label="课程" min-width="180" />
-            <el-table-column prop="cardCode" label="卡密" width="140" />
+            <el-table-column prop="cardCode" label="激活码" width="140" />
             <el-table-column prop="status" label="状态" width="100">
               <template #default="{ row }">
                 <el-tag type="success">{{ row.status === 'activated' ? '已开通' : row.status }}</el-tag>
@@ -188,7 +188,7 @@
           </el-col>
           <el-col :span="12">
             <el-card shadow="never" class="admin-block">
-              <template #header>错题本</template>
+              <template #header>错题与测试</template>
               <el-table :data="studyData.wrongQuestions" height="260">
                 <el-table-column prop="stem" label="题干" show-overflow-tooltip />
                 <el-table-column prop="knowledge" label="知识点" width="120" />
@@ -222,6 +222,70 @@
             </el-card>
           </el-col>
         </el-row>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="isRootAdmin" label="课程打分统计" name="ratings">
+        <el-card shadow="never" class="admin-block rating-board">
+          <template #header>课程打分评价统计</template>
+          <div class="rating-overview">
+            <div class="rating-chip">
+              <span>平均星级</span>
+              <strong>{{ ratingStats.average || '0.0' }}星</strong>
+            </div>
+            <div class="rating-chip">
+              <span>评价总数</span>
+              <strong>{{ ratingStats.chapterTotal || 0 }}条</strong>
+            </div>
+            <div class="rating-chip" v-for="star in ratingOptions" :key="star">
+              <span>{{ star }}星</span>
+              <strong>{{ starCount(ratingStats, star) }}</strong>
+            </div>
+          </div>
+        </el-card>
+
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <el-card shadow="never" class="admin-block">
+              <template #header>科目评分统计</template>
+              <el-table :data="ratingStats.subjects || []" height="320" empty-text="暂无科目评分">
+                <el-table-column prop="name" label="科目" show-overflow-tooltip />
+                <el-table-column prop="average" label="均星" width="80" />
+                <el-table-column prop="total" label="数量" width="80" />
+              </el-table>
+            </el-card>
+          </el-col>
+          <el-col :span="8">
+            <el-card shadow="never" class="admin-block">
+              <template #header>章节评分统计</template>
+              <el-table :data="ratingStats.chapters || []" height="320" empty-text="暂无章节评分">
+                <el-table-column prop="name" label="章节" show-overflow-tooltip />
+                <el-table-column prop="average" label="均星" width="80" />
+                <el-table-column prop="total" label="数量" width="80" />
+              </el-table>
+            </el-card>
+          </el-col>
+          <el-col :span="8">
+            <el-card shadow="never" class="admin-block">
+              <template #header>课程小节评分统计</template>
+              <el-table :data="ratingStats.lessons || []" height="320" empty-text="暂无小节评分">
+                <el-table-column prop="name" label="课程小节" show-overflow-tooltip />
+                <el-table-column prop="average" label="均星" width="80" />
+                <el-table-column prop="total" label="数量" width="80" />
+              </el-table>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <el-card shadow="never" class="admin-block">
+          <template #header>成绩阶段星级分布</template>
+          <el-table :data="ratingStats.groups || []" border>
+            <el-table-column prop="range" label="成绩阶段" width="120" />
+            <el-table-column prop="students" label="人数" width="90" />
+            <el-table-column v-for="star in ratingOptions" :key="star" :label="`${star}星`" width="90">
+              <template #default="{ row }">{{ starCount(row, star) }}</template>
+            </el-table-column>
+          </el-table>
+        </el-card>
       </el-tab-pane>
     </el-tabs>
 
@@ -293,6 +357,7 @@
 <script setup name="CourseManage">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import useUserStore from '@/store/modules/user'
 import {
   addCourse,
   addOrder,
@@ -314,6 +379,7 @@ import {
 } from '@/api/course'
 
 const activeTab = ref('courses')
+const userStore = useUserStore()
 const loading = ref(false)
 const dashboard = reactive({})
 const courseQuery = reactive({ stage: '', kind: '' })
@@ -339,6 +405,7 @@ const courseForm = reactive(defaultCourseForm())
 const docForm = reactive(defaultDocForm())
 const questionForm = reactive(defaultQuestionForm())
 const orderForm = reactive({ userId: '56596', courseId: 'gk-math-full', cardCode: '' })
+const ratingOptions = [1, 2, 3, 4, 5]
 
 const summaryCards = computed(() => [
   { label: '课程数', value: dashboard.courseTotal || 0 },
@@ -348,6 +415,8 @@ const summaryCards = computed(() => [
   { label: '练习记录', value: dashboard.attemptTotal || 0 },
   { label: '待复盘错题', value: dashboard.wrongTotal || 0 }
 ])
+const ratingStats = computed(() => dashboard.ratingStats || {})
+const isRootAdmin = computed(() => String(userStore.id) === '1' || userStore.name === 'admin')
 
 onMounted(() => {
   loadAll()
@@ -508,6 +577,11 @@ async function submitOrder() {
   await Promise.all([loadOrdersData(), loadDashboard()])
 }
 
+function starCount(row = {}, star) {
+  const counts = row.counts || row.totalCounts || {}
+  return counts[star] || counts[String(star)] || 0
+}
+
 function defaultCourseForm() {
   return {
     id: '',
@@ -597,5 +671,36 @@ function defaultQuestionForm() {
 .admin-block {
   margin-bottom: 16px;
   border-radius: 8px;
+}
+
+.rating-board {
+  background: #fbfdff;
+}
+
+.rating-overview {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.rating-chip {
+  min-height: 72px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e7eaf0;
+}
+
+.rating-chip span {
+  display: block;
+  color: #697386;
+  font-size: 13px;
+}
+
+.rating-chip strong {
+  display: block;
+  margin-top: 8px;
+  color: #1f2937;
+  font-size: 22px;
 }
 </style>
