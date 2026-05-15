@@ -277,9 +277,9 @@
         </el-row>
 
         <el-card shadow="never" class="admin-block">
-          <template #header>成绩阶段星级分布</template>
+          <template #header>激活分数阶段星级分布</template>
           <el-table :data="ratingStats.groups || []" border>
-            <el-table-column prop="range" label="成绩阶段" width="120" />
+            <el-table-column prop="range" label="激活分数段" width="120" />
             <el-table-column prop="students" label="人数" width="90" />
             <el-table-column v-for="star in ratingOptions" :key="star" :label="`${star}星`" width="90">
               <template #default="{ row }">{{ starCount(row, star) }}</template>
