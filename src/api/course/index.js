@@ -103,6 +103,33 @@ export function listUsers() {
   })
 }
 
+export function updateUserRole(id, data) {
+  return request({
+    url: `/course/admin/users/${id}/role`,
+    method: 'put',
+    data,
+    headers: { isToken: false }
+  })
+}
+
+export function listActivationCodes() {
+  return request({
+    url: '/course/admin/activation-codes',
+    method: 'get',
+    headers: { isToken: false }
+  })
+}
+
+export function saveActivationCode(data) {
+  const hasId = !!data.id
+  return request({
+    url: hasId ? `/course/admin/activation-codes/${data.id}` : '/course/admin/activation-codes',
+    method: hasId ? 'put' : 'post',
+    data,
+    headers: { isToken: false }
+  })
+}
+
 export function listAuthRequests() {
   return request({
     url: '/course/admin/auth-requests',
@@ -133,6 +160,22 @@ export function addOrder(data) {
     url: '/course/admin/orders',
     method: 'post',
     data,
+    headers: { isToken: false }
+  })
+}
+
+export function closeOrder(id) {
+  return request({
+    url: `/course/admin/orders/${id}/close`,
+    method: 'put',
+    headers: { isToken: false }
+  })
+}
+
+export function getAgencySummary(id) {
+  return request({
+    url: `/course/admin/agencies/${id}/summary`,
+    method: 'get',
     headers: { isToken: false }
   })
 }

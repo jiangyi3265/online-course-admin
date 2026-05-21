@@ -114,6 +114,12 @@
                 <el-table-column prop="name" label="姓名" />
                 <el-table-column prop="phone" label="手机号" />
                 <el-table-column prop="role" label="角色" width="90" />
+                <el-table-column label="分机构" width="170">
+                  <template #default="{ row }">
+                    <el-button link type="primary" @click="setAgencyAdmin(row)">设为分机构</el-button>
+                    <el-button link type="success" @click="showAgencyStats(row)">查看</el-button>
+                  </template>
+                </el-table-column>
               </el-table>
             </el-card>
           </el-col>
@@ -130,6 +136,18 @@
                 <el-form-item label="激活码">
                   <el-input v-model="orderForm.cardCode" placeholder="可选" style="width: 180px" />
                 </el-form-item>
+                <el-form-item label="卡类型">
+                  <el-select v-model="orderForm.cardType" style="width: 150px">
+                    <el-option label="一年期" value="year" />
+                    <el-option label="72小时" value="hours72" />
+                    <el-option label="7天卡" value="days7" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="学生名"><el-input v-model="orderForm.studentName" style="width: 120px" /></el-form-item>
+                <el-form-item label="最近分数"><el-input v-model="orderForm.recentExamScore" style="width: 110px" /></el-form-item>
+                <el-form-item label="年级"><el-input v-model="orderForm.grade" style="width: 100px" /></el-form-item>
+                <el-form-item label="学校"><el-input v-model="orderForm.schoolName" style="width: 150px" /></el-form-item>
+                <el-form-item label="地区"><el-input v-model="orderForm.region" style="width: 120px" /></el-form-item>
                 <el-form-item>
                   <el-button type="primary" icon="Plus" @click="submitOrder">开通课程</el-button>
                 </el-form-item>
@@ -164,13 +182,78 @@
             <el-table-column prop="cardCode" label="激活码" width="140" />
             <el-table-column prop="status" label="状态" width="100">
               <template #default="{ row }">
-                <el-tag type="success">{{ row.status === 'activated' ? '已开通' : row.status }}</el-tag>
+                <el-tag :type="row.status === 'activated' ? 'success' : 'info'">{{ row.status === 'activated' ? '已开通' : row.status }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="source" label="来源" width="100" />
+            <el-table-column prop="expiresAt" label="到期时间" width="170" />
             <el-table-column prop="createdAt" label="时间" width="180" />
+            <el-table-column label="操作" width="110">
+              <template #default="{ row }">
+                <el-button link type="danger" :disabled="row.status !== 'activated'" @click="handleCloseOrder(row)">关闭权限</el-button>
+              </template>
+            </el-table-column>
           </el-table>
         </el-card>
+
+        <el-card v-if="agencyStats" shadow="never" class="admin-block">
+          <template #header>分机构账号概览</template>
+          <el-row :gutter="12" class="agency-cards">
+            <el-col :span="4"><div class="agency-card"><span>名额</span><strong>{{ agencyStats.quota }}</strong></div></el-col>
+            <el-col :span="4"><div class="agency-card"><span>激活码总量</span><strong>{{ agencyStats.totalCodes }}</strong></div></el-col>
+            <el-col :span="4"><div class="agency-card"><span>已激活</span><strong>{{ agencyStats.activatedCount }}</strong></div></el-col>
+            <el-col :span="4"><div class="agency-card"><span>未激活</span><strong>{{ agencyStats.unusedCount }}</strong></div></el-col>
+          </el-row>
+          <el-table :data="agencyStats.students || []" border>
+            <el-table-column prop="studentName" label="学生名字" />
+            <el-table-column prop="subject" label="科目" />
+            <el-table-column prop="region" label="地区" />
+            <el-table-column prop="activatedAt" label="激活日期" width="180" />
+          </el-table>
+        </el-card>
+      </el-tab-pane>
+
+      <el-tab-pane label="激活码管理" name="codes">
+        <el-card shadow="never" class="admin-block">
+          <template #header>激活码设置</template>
+          <el-form :model="activationForm" inline>
+            <el-form-item label="激活码"><el-input v-model="activationForm.code" placeholder="不填自动生成" style="width: 180px" /></el-form-item>
+            <el-form-item label="课程ID"><el-input v-model="activationForm.courseId" style="width: 180px" /></el-form-item>
+            <el-form-item label="类型">
+              <el-select v-model="activationForm.cardType" style="width: 150px">
+                <el-option label="一年期" value="year" />
+                <el-option label="72小时" value="hours72" />
+                <el-option label="7天卡" value="days7" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="归属账号ID"><el-input v-model="activationForm.ownerUserId" style="width: 140px" /></el-form-item>
+            <el-form-item label="状态">
+              <el-select v-model="activationForm.status" style="width: 120px">
+                <el-option label="可用" value="available" />
+                <el-option label="关闭" value="disabled" />
+                <el-option label="已使用" value="used" />
+              </el-select>
+            </el-form-item>
+            <el-form-item><el-button type="primary" icon="Plus" @click="submitActivationCode">{{ activationForm.id ? '保存激活码' : '新增激活码' }}</el-button></el-form-item>
+          </el-form>
+        </el-card>
+        <el-table :data="activationList" border>
+          <el-table-column prop="code" label="激活码" width="170" />
+          <el-table-column prop="courseTitle" label="课程" min-width="180" />
+          <el-table-column prop="cardTypeText" label="类型" width="130" />
+          <el-table-column prop="ownerName" label="归属账号" width="120" />
+          <el-table-column prop="status" label="状态" width="100" />
+          <el-table-column prop="studentName" label="使用学生" width="120" />
+          <el-table-column prop="region" label="地区" width="120" />
+          <el-table-column prop="activatedAt" label="激活日期" width="180" />
+          <el-table-column prop="expiresAt" label="到期时间" width="180" />
+          <el-table-column label="操作" fixed="right" width="150">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="editActivationCode(row)">编辑</el-button>
+              <el-button link type="danger" :disabled="row.status === 'used'" @click="disableActivationCode(row)">{{ row.status === 'disabled' ? '启用' : '关闭' }}</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
       </el-tab-pane>
 
       <el-tab-pane label="学习数据" name="study">
@@ -361,20 +444,25 @@ import useUserStore from '@/store/modules/user'
 import {
   addCourse,
   addOrder,
+  closeOrder,
   deleteCourse,
   deleteDoc,
   deleteQuestion,
+  getAgencySummary,
   getCourseDashboard,
   getStudyData,
   handleAuthRequest,
+  listActivationCodes,
   listAuthRequests,
   listCourses,
   listDocs,
   listOrders,
   listQuestions,
   listUsers,
+  saveActivationCode,
   saveDoc,
   saveQuestion,
+  updateUserRole,
   updateCourse
 } from '@/api/course'
 
@@ -389,6 +477,8 @@ const questionList = ref([])
 const userList = ref([])
 const authList = ref([])
 const orderList = ref([])
+const activationList = ref([])
+const agencyStats = ref(null)
 const studyData = reactive({
   attempts: [],
   wrongQuestions: [],
@@ -404,7 +494,8 @@ const editingCourseId = ref('')
 const courseForm = reactive(defaultCourseForm())
 const docForm = reactive(defaultDocForm())
 const questionForm = reactive(defaultQuestionForm())
-const orderForm = reactive({ userId: '56596', courseId: 'gk-math-full', cardCode: '' })
+const orderForm = reactive({ userId: '56596', courseId: 'gk-math-full', cardCode: '', cardType: 'year', studentName: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
+const activationForm = reactive({ id: '', code: '', courseId: 'gk-math-full', cardType: 'year', ownerUserId: '33075', status: 'available', remark: '' })
 const ratingOptions = [1, 2, 3, 4, 5]
 
 const summaryCards = computed(() => [
@@ -429,6 +520,7 @@ async function loadAll() {
     loadDocsData(),
     loadQuestionsData(),
     loadUsersData(),
+    loadActivationData(),
     loadAuthData(),
     loadOrdersData(),
     loadStudyData()
@@ -463,6 +555,11 @@ async function loadQuestionsData() {
 async function loadUsersData() {
   const res = await listUsers()
   userList.value = res.data || []
+}
+
+async function loadActivationData() {
+  const res = await listActivationCodes()
+  activationList.value = res.data || []
 }
 
 async function loadAuthData() {
@@ -577,6 +674,58 @@ async function submitOrder() {
   await Promise.all([loadOrdersData(), loadDashboard()])
 }
 
+async function handleCloseOrder(row) {
+  await ElMessageBox.confirm(`确认关闭「${row.userName}」的课程权限吗？`, '手动关闭权限', { type: 'warning' })
+  await closeOrder(row.id)
+  ElMessage.success('课程权限已关闭')
+  await Promise.all([loadOrdersData(), loadDashboard()])
+}
+
+async function submitActivationCode() {
+  if (!activationForm.courseId || !activationForm.cardType) {
+    ElMessage.warning('请填写课程ID和卡类型')
+    return
+  }
+  await saveActivationCode({ ...activationForm })
+  ElMessage.success('激活码已保存')
+  Object.assign(activationForm, { id: '', code: '', courseId: 'gk-math-full', cardType: 'year', ownerUserId: '33075', status: 'available', remark: '' })
+  await loadActivationData()
+}
+
+function editActivationCode(row) {
+  Object.assign(activationForm, {
+    id: row.id,
+    code: row.code,
+    courseId: row.courseId,
+    cardType: row.cardType,
+    ownerUserId: row.ownerUserId,
+    status: row.status,
+    remark: row.remark || ''
+  })
+}
+
+async function disableActivationCode(row) {
+  await saveActivationCode({ id: row.id, status: row.status === 'disabled' ? 'available' : 'disabled' })
+  ElMessage.success(row.status === 'disabled' ? '激活码已启用' : '激活码已关闭')
+  await loadActivationData()
+}
+
+async function setAgencyAdmin(row) {
+  await updateUserRole(row.id, {
+    role: 'agency_admin',
+    organizationName: row.organizationName || row.name,
+    activationQuota: row.activationQuota || 100
+  })
+  ElMessage.success('已设置为分机构管理账号')
+  await loadUsersData()
+  await showAgencyStats(row)
+}
+
+async function showAgencyStats(row) {
+  const res = await getAgencySummary(row.id)
+  agencyStats.value = res.data || null
+}
+
 function starCount(row = {}, star) {
   const counts = row.counts || row.totalCounts || {}
   return counts[star] || counts[String(star)] || 0
@@ -671,6 +820,31 @@ function defaultQuestionForm() {
 .admin-block {
   margin-bottom: 16px;
   border-radius: 8px;
+}
+
+.agency-cards {
+  margin-bottom: 12px;
+}
+
+.agency-card {
+  min-height: 70px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e7eaf0;
+}
+
+.agency-card span {
+  display: block;
+  color: #697386;
+  font-size: 13px;
+}
+
+.agency-card strong {
+  display: block;
+  margin-top: 8px;
+  color: #1f2937;
+  font-size: 22px;
 }
 
 .rating-board {
