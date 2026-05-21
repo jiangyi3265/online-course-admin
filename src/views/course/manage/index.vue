@@ -271,7 +271,7 @@
           </el-col>
           <el-col :span="12">
             <el-card shadow="never" class="admin-block">
-              <template #header>错题与测试</template>
+              <template #header>错题与巩固</template>
               <el-table :data="studyData.wrongQuestions" height="260">
                 <el-table-column prop="stem" label="题干" show-overflow-tooltip />
                 <el-table-column prop="knowledge" label="知识点" width="120" />
@@ -395,7 +395,7 @@
           </el-col>
           <el-col :span="12"><el-form-item label="封面"><el-input v-model="courseForm.cover" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="排序"><el-input-number v-model="courseForm.sort" :min="0" style="width: 100%" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="总讲数"><el-input-number v-model="courseForm.totalLessons" :min="0" style="width: 100%" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="课程节数"><el-input-number v-model="courseForm.totalLessons" :min="0" style="width: 100%" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="状态"><el-switch v-model="courseForm.status" active-value="published" inactive-value="draft" active-text="发布" inactive-text="草稿" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="简介"><el-input v-model="courseForm.introduction" type="textarea" :rows="3" /></el-form-item></el-col>
         </el-row>
