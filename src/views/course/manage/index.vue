@@ -96,6 +96,11 @@
             <template #default="{ row }">{{ (row.options || []).join(' / ') }}</template>
           </el-table-column>
           <el-table-column prop="answer" label="答案序号" width="100" />
+          <el-table-column label="视频解析" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.videoAnalysisUrl ? 'success' : 'info'">{{ row.videoAnalysisUrl ? '已上传' : '暂无' }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="160">
             <template #default="{ row }">
               <el-button link type="primary" icon="Edit" @click="openQuestionDialog(row)">编辑</el-button>
@@ -428,6 +433,9 @@
         <el-form-item label="答案序号"><el-input-number v-model="questionForm.answer" :min="0" :max="9" /></el-form-item>
         <el-form-item label="知识点"><el-input v-model="questionForm.knowledge" /></el-form-item>
         <el-form-item label="解析"><el-input v-model="questionForm.analysis" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="视频解析">
+          <file-upload v-model="questionForm.videoAnalysisUrl" :limit="1" :file-size="500" :file-type="['mp4', 'mov', 'm4v', 'webm']" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="questionOpen = false">取消</el-button>
@@ -771,7 +779,8 @@ function defaultQuestionForm() {
     optionsText: '',
     answer: 0,
     analysis: '',
-    knowledge: ''
+    knowledge: '',
+    videoAnalysisUrl: ''
   }
 }
 </script>
