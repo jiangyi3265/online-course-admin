@@ -68,7 +68,14 @@
         </el-row>
         <el-table :data="docList" border>
           <el-table-column prop="title" label="资料名称" min-width="220" show-overflow-tooltip />
-          <el-table-column prop="courseId" label="课程ID" width="150" />
+          <el-table-column label="所属科目" min-width="180" show-overflow-tooltip>
+            <template #default="{ row }">{{ courseLabel(row.courseId) }}</template>
+          </el-table-column>
+          <el-table-column label="分类" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.category === 'paper' ? 'warning' : 'primary'">{{ docCategoryLabel(row.category) }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="fileType" label="类型" width="90" />
           <el-table-column prop="size" label="大小" width="90" />
           <el-table-column prop="visible" label="前端可见" width="100">
@@ -414,7 +421,17 @@
     <el-dialog v-model="docOpen" :title="docForm.id ? '编辑资料' : '新增资料'" width="620px" append-to-body>
       <el-form :model="docForm" label-width="90px">
         <el-form-item label="资料标题"><el-input v-model="docForm.title" /></el-form-item>
-        <el-form-item label="课程ID"><el-input v-model="docForm.courseId" /></el-form-item>
+        <el-form-item label="所属科目">
+          <el-select v-model="docForm.courseId" filterable placeholder="选择资料所属科目" style="width: 100%">
+            <el-option v-for="course in courseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="资料分类">
+          <el-select v-model="docForm.category" style="width: 100%">
+            <el-option label="资料" value="lecture" />
+            <el-option label="试卷" value="paper" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="文件地址"><el-input v-model="docForm.fileUrl" /></el-form-item>
         <el-form-item label="文件类型"><el-input v-model="docForm.fileType" /></el-form-item>
         <el-form-item label="文件大小"><el-input v-model="docForm.size" /></el-form-item>
@@ -480,6 +497,7 @@ const loading = ref(false)
 const dashboard = reactive({})
 const courseQuery = reactive({ stage: '', kind: '' })
 const courseList = ref([])
+const courseOptionList = ref([])
 const docList = ref([])
 const questionList = ref([])
 const userList = ref([])
@@ -516,6 +534,10 @@ const summaryCards = computed(() => [
 ])
 const ratingStats = computed(() => dashboard.ratingStats || {})
 const isRootAdmin = computed(() => String(userStore.id) === '1' || userStore.name === 'admin')
+const courseOptions = computed(() => (courseOptionList.value.length ? courseOptionList.value : courseList.value).map(course => ({
+  ...course,
+  optionLabel: `${cleanCourseName(course.courseName || course.title || course.id)}（${course.id}）`
+})))
 
 onMounted(() => {
   loadAll()
@@ -524,6 +546,7 @@ onMounted(() => {
 async function loadAll() {
   await Promise.all([
     loadDashboard(),
+    loadCourseOptions(),
     loadCourses(),
     loadDocsData(),
     loadQuestionsData(),
@@ -548,6 +571,11 @@ async function loadCourses() {
   } finally {
     loading.value = false
   }
+}
+
+async function loadCourseOptions() {
+  const res = await listCourses({})
+  courseOptionList.value = res.data || []
 }
 
 async function loadDocsData() {
@@ -612,14 +640,14 @@ async function submitCourse() {
   }
   ElMessage.success('课程已保存')
   courseOpen.value = false
-  await Promise.all([loadCourses(), loadDashboard()])
+  await Promise.all([loadCourses(), loadCourseOptions(), loadDashboard()])
 }
 
 async function removeCourse(row) {
   await ElMessageBox.confirm(`确认删除课程「${row.courseName}」吗？`, '提示', { type: 'warning' })
   await deleteCourse(row.id)
   ElMessage.success('课程已删除')
-  await Promise.all([loadCourses(), loadDashboard()])
+  await Promise.all([loadCourses(), loadCourseOptions(), loadDashboard()])
 }
 
 function openDocDialog(row) {
@@ -628,6 +656,10 @@ function openDocDialog(row) {
 }
 
 async function submitDoc() {
+  if (!docForm.courseId) {
+    ElMessage.warning('请选择资料所属科目')
+    return
+  }
   await saveDoc({ ...docForm })
   ElMessage.success('资料已保存')
   docOpen.value = false
@@ -739,6 +771,19 @@ function starCount(row = {}, star) {
   return counts[star] || counts[String(star)] || 0
 }
 
+function cleanCourseName(value = '') {
+  return String(value).replace(/[《》]/g, '').replace(/20\d{2}/g, '').replace(/试听课/g, '').trim() || '未命名课程'
+}
+
+function courseLabel(courseId = '') {
+  const course = courseOptions.value.find(item => item.id === courseId)
+  return course ? course.optionLabel : (courseId || '未选择')
+}
+
+function docCategoryLabel(category = '') {
+  return category === 'paper' ? '试卷' : '资料'
+}
+
 function defaultCourseForm() {
   return {
     id: '',
@@ -764,6 +809,7 @@ function defaultDocForm() {
   return {
     id: '',
     courseId: 'gk-math-full',
+    category: 'lecture',
     title: '',
     fileUrl: '#',
     fileType: 'PDF',
