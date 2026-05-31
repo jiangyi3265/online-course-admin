@@ -1,10 +1,9 @@
-import request from '@/utils/request'
+﻿import request from '@/utils/request'
 
 export function getCourseDashboard() {
   return request({
     url: '/course/admin/dashboard',
     method: 'get',
-    headers: { isToken: false }
   })
 }
 
@@ -13,7 +12,6 @@ export function listCourses(query) {
     url: '/course/admin/courses',
     method: 'get',
     params: query,
-    headers: { isToken: false }
   })
 }
 
@@ -22,7 +20,6 @@ export function addCourse(data) {
     url: '/course/admin/courses',
     method: 'post',
     data,
-    headers: { isToken: false }
   })
 }
 
@@ -31,7 +28,6 @@ export function updateCourse(id, data) {
     url: `/course/admin/courses/${id}`,
     method: 'put',
     data,
-    headers: { isToken: false }
   })
 }
 
@@ -39,7 +35,6 @@ export function deleteCourse(id) {
   return request({
     url: `/course/admin/courses/${id}`,
     method: 'delete',
-    headers: { isToken: false }
   })
 }
 
@@ -47,7 +42,6 @@ export function listDocs() {
   return request({
     url: '/course/admin/docs',
     method: 'get',
-    headers: { isToken: false }
   })
 }
 
@@ -57,7 +51,6 @@ export function saveDoc(data) {
     url: hasId ? `/course/admin/docs/${data.id}` : '/course/admin/docs',
     method: hasId ? 'put' : 'post',
     data,
-    headers: { isToken: false }
   })
 }
 
@@ -65,7 +58,6 @@ export function deleteDoc(id) {
   return request({
     url: `/course/admin/docs/${id}`,
     method: 'delete',
-    headers: { isToken: false }
   })
 }
 
@@ -73,7 +65,6 @@ export function listQuestions() {
   return request({
     url: '/course/admin/questions',
     method: 'get',
-    headers: { isToken: false }
   })
 }
 
@@ -83,7 +74,6 @@ export function saveQuestion(data) {
     url: hasId ? `/course/admin/questions/${data.id}` : '/course/admin/questions',
     method: hasId ? 'put' : 'post',
     data,
-    headers: { isToken: false }
   })
 }
 
@@ -91,7 +81,6 @@ export function deleteQuestion(id) {
   return request({
     url: `/course/admin/questions/${id}`,
     method: 'delete',
-    headers: { isToken: false }
   })
 }
 
@@ -99,7 +88,6 @@ export function listUsers() {
   return request({
     url: '/course/admin/users',
     method: 'get',
-    headers: { isToken: false }
   })
 }
 
@@ -108,7 +96,6 @@ export function updateUserRole(id, data) {
     url: `/course/admin/users/${id}/role`,
     method: 'put',
     data,
-    headers: { isToken: false }
   })
 }
 
@@ -116,7 +103,6 @@ export function listActivationCodes() {
   return request({
     url: '/course/admin/activation-codes',
     method: 'get',
-    headers: { isToken: false }
   })
 }
 
@@ -126,7 +112,28 @@ export function saveActivationCode(data) {
     url: hasId ? `/course/admin/activation-codes/${data.id}` : '/course/admin/activation-codes',
     method: hasId ? 'put' : 'post',
     data,
-    headers: { isToken: false }
+  })
+}
+
+export function deleteActivationCode(id) {
+  return request({
+    url: `/course/admin/activation-codes/${id}`,
+    method: 'delete',
+  })
+}
+
+export function activateCourseByCode(data) {
+  return request({
+    url: '/course/admin/activate',
+    method: 'post',
+    data,
+  })
+}
+
+export function listAgencyStats() {
+  return request({
+    url: '/course/admin/agencies/summary',
+    method: 'get',
   })
 }
 
@@ -134,7 +141,6 @@ export function listAuthRequests() {
   return request({
     url: '/course/admin/auth-requests',
     method: 'get',
-    headers: { isToken: false }
   })
 }
 
@@ -143,7 +149,6 @@ export function handleAuthRequest(id, status) {
     url: `/course/admin/auth-requests/${id}`,
     method: 'put',
     data: { status },
-    headers: { isToken: false }
   })
 }
 
@@ -151,7 +156,6 @@ export function listOrders() {
   return request({
     url: '/course/admin/orders',
     method: 'get',
-    headers: { isToken: false }
   })
 }
 
@@ -160,7 +164,6 @@ export function addOrder(data) {
     url: '/course/admin/orders',
     method: 'post',
     data,
-    headers: { isToken: false }
   })
 }
 
@@ -168,7 +171,6 @@ export function closeOrder(id) {
   return request({
     url: `/course/admin/orders/${id}/close`,
     method: 'put',
-    headers: { isToken: false }
   })
 }
 
@@ -176,7 +178,6 @@ export function getAgencySummary(id) {
   return request({
     url: `/course/admin/agencies/${id}/summary`,
     method: 'get',
-    headers: { isToken: false }
   })
 }
 
@@ -184,6 +185,5 @@ export function getStudyData() {
   return request({
     url: '/course/admin/study',
     method: 'get',
-    headers: { isToken: false }
   })
 }

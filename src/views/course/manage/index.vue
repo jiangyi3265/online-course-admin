@@ -27,7 +27,7 @@
           <el-form-item>
             <el-button type="primary" icon="Search" @click="loadCourses">查询</el-button>
             <el-button icon="Refresh" @click="resetCourseQuery">重置</el-button>
-            <el-button type="success" icon="Plus" @click="openCourseDialog()">新增课程</el-button>
+            <el-button type="success" icon="UploadFilled" @click="openCourseDialog()">上传课程</el-button>
           </el-form-item>
         </el-form>
 
@@ -165,6 +165,21 @@
                 </el-form-item>
               </el-form>
             </el-card>
+            <el-card shadow="never" class="admin-block">
+              <template #header>后台激活码开通</template>
+              <el-form :model="codeActivateForm" inline>
+                <el-form-item label="用户ID"><el-input v-model="codeActivateForm.userId" style="width: 150px" /></el-form-item>
+                <el-form-item label="激活码"><el-input v-model="codeActivateForm.code" placeholder="输入激活码" style="width: 190px" /></el-form-item>
+                <el-form-item label="学生名"><el-input v-model="codeActivateForm.studentName" style="width: 120px" /></el-form-item>
+                <el-form-item label="最近分数"><el-input v-model="codeActivateForm.recentExamScore" style="width: 110px" /></el-form-item>
+                <el-form-item label="年级"><el-input v-model="codeActivateForm.grade" style="width: 100px" /></el-form-item>
+                <el-form-item label="学校"><el-input v-model="codeActivateForm.schoolName" style="width: 150px" /></el-form-item>
+                <el-form-item label="地区"><el-input v-model="codeActivateForm.region" style="width: 120px" /></el-form-item>
+                <el-form-item>
+                  <el-button type="success" icon="Key" @click="submitCodeActivation">激活课程</el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
           </el-col>
         </el-row>
 
@@ -215,6 +230,8 @@
             <el-col :span="4"><div class="agency-card"><span>激活码总量</span><strong>{{ agencyStats.totalCodes }}</strong></div></el-col>
             <el-col :span="4"><div class="agency-card"><span>已激活</span><strong>{{ agencyStats.activatedCount }}</strong></div></el-col>
             <el-col :span="4"><div class="agency-card"><span>未激活</span><strong>{{ agencyStats.unusedCount }}</strong></div></el-col>
+            <el-col :span="4"><div class="agency-card"><span>锁定</span><strong>{{ agencyStats.lockedCount || 0 }}</strong></div></el-col>
+            <el-col :span="4"><div class="agency-card"><span>用户数</span><strong>{{ agencyStats.userCount || 0 }}</strong></div></el-col>
           </el-row>
           <el-table :data="agencyStats.students || []" border>
             <el-table-column prop="studentName" label="学生名字" />
@@ -225,7 +242,80 @@
         </el-card>
       </el-tab-pane>
 
+      <el-tab-pane label="用户管理" name="users">
+        <el-form :model="userQuery" inline class="user-filter">
+          <el-form-item label="关键词">
+            <el-input v-model="userQuery.keyword" clearable placeholder="姓名 / 手机号 / ID" style="width: 220px" />
+          </el-form-item>
+          <el-form-item label="角色">
+            <el-select v-model="userQuery.role" clearable placeholder="全部角色" style="width: 150px">
+              <el-option v-for="item in userRoleOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="userQuery.status" clearable placeholder="全部状态" style="width: 140px">
+              <el-option v-for="item in userStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button icon="Refresh" @click="resetUserQuery">重置</el-button>
+          </el-form-item>
+        </el-form>
+
+        <el-table :data="filteredUserList" border>
+          <el-table-column prop="id" label="用户ID" width="130" show-overflow-tooltip />
+          <el-table-column prop="name" label="姓名" min-width="130">
+            <template #default="{ row }">
+              <el-input v-model="row.name" size="small" @change="saveUser(row)" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="phone" label="手机号" min-width="150">
+            <template #default="{ row }">
+              <el-input v-model="row.phone" size="small" @change="saveUser(row)" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="role" label="角色" width="150">
+            <template #default="{ row }">
+              <el-select v-model="row.role" size="small" @change="saveUser(row)">
+                <el-option v-for="item in userRoleOptions" :key="item.value" :label="item.label" :value="item.value" />
+              </el-select>
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="110">
+            <template #default="{ row }">
+              <el-switch v-model="row.status" active-value="active" inactive-value="disabled" @change="saveUser(row)" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="organizationName" label="机构/归属" min-width="150">
+            <template #default="{ row }">
+              <el-input v-model="row.organizationName" size="small" placeholder="机构名称" @change="saveUser(row)" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="activationQuota" label="激活名额" width="120">
+            <template #default="{ row }">
+              <el-input-number v-model="row.activationQuota" :min="0" size="small" controls-position="right" @change="saveUser(row)" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="createdAt" label="注册时间" width="180" show-overflow-tooltip />
+          <el-table-column label="操作" fixed="right" width="170">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="setAgencyAdmin(row)">设为机构</el-button>
+              <el-button link type="success" @click="showAgencyStats(row)">统计</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
       <el-tab-pane label="激活码管理" name="codes">
+        <el-row :gutter="12" class="agency-cards">
+          <el-col :span="4" v-for="item in activationSummaryCards" :key="item.label">
+            <div class="agency-card">
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </div>
+          </el-col>
+        </el-row>
+
         <el-card shadow="never" class="admin-block">
           <template #header>激活码设置</template>
           <el-form :model="activationForm" inline>
@@ -249,20 +339,65 @@
             <el-form-item><el-button type="primary" icon="Plus" @click="submitActivationCode">{{ activationForm.id ? '保存激活码' : '新增激活码' }}</el-button></el-form-item>
           </el-form>
         </el-card>
-        <el-table :data="activationList" border>
+
+        <el-form :model="activationQuery" inline class="user-filter">
+          <el-form-item label="关键词">
+            <el-input v-model="activationQuery.keyword" clearable placeholder="激活码 / 课程 / 归属 / 学生" style="width: 260px" />
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="activationQuery.status" clearable placeholder="全部状态" style="width: 140px">
+              <el-option label="可用" value="available" />
+              <el-option label="已锁定" value="disabled" />
+              <el-option label="已使用" value="used" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="归属账号">
+            <el-input v-model="activationQuery.owner" clearable placeholder="账号ID" style="width: 140px" />
+          </el-form-item>
+        </el-form>
+
+        <el-table :data="filteredActivationList" border>
           <el-table-column prop="code" label="激活码" width="170" />
           <el-table-column prop="courseTitle" label="课程" min-width="180" />
           <el-table-column prop="cardTypeText" label="类型" width="130" />
           <el-table-column prop="ownerName" label="归属账号" width="120" />
-          <el-table-column prop="status" label="状态" width="100" />
+          <el-table-column prop="status" label="状态" width="110">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'used' ? 'success' : row.status === 'disabled' ? 'danger' : 'primary'">{{ row.status === 'used' ? '已使用' : row.status === 'disabled' ? '已锁定' : '可使用' }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="studentName" label="使用学生" width="120" />
           <el-table-column prop="region" label="地区" width="120" />
           <el-table-column prop="activatedAt" label="激活日期" width="180" />
           <el-table-column prop="expiresAt" label="到期时间" width="180" />
-          <el-table-column label="操作" fixed="right" width="150">
+          <el-table-column label="操作" fixed="right" width="260">
             <template #default="{ row }">
               <el-button link type="primary" @click="editActivationCode(row)">编辑</el-button>
-              <el-button link type="danger" :disabled="row.status === 'used'" @click="disableActivationCode(row)">{{ row.status === 'disabled' ? '启用' : '关闭' }}</el-button>
+              <el-button link :type="row.status === 'disabled' ? 'success' : 'warning'" :disabled="row.status === 'used'" @click="disableActivationCode(row)">{{ row.status === 'disabled' ? '解锁' : '锁定' }}</el-button>
+              <el-button link type="info" :disabled="row.status === 'used' || !row.ownerUserId" @click="unassignActivationCode(row)">取消分配</el-button>
+              <el-button link type="danger" :disabled="row.status === 'used'" @click="removeActivationCode(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane label="校区管理" name="agencies">
+        <el-table :data="agencyList" border>
+          <el-table-column label="校区/机构" min-width="180">
+            <template #default="{ row }">{{ row.agency?.organizationName || row.agency?.name || row.agency?.id }}</template>
+          </el-table-column>
+          <el-table-column label="账号ID" width="120">
+            <template #default="{ row }">{{ row.agency?.id }}</template>
+          </el-table-column>
+          <el-table-column prop="quota" label="名额" width="90" />
+          <el-table-column prop="totalCodes" label="激活码" width="100" />
+          <el-table-column prop="activatedCount" label="已激活" width="100" />
+          <el-table-column prop="unusedCount" label="分配未使用" width="120" />
+          <el-table-column prop="lockedCount" label="锁定" width="90" />
+          <el-table-column prop="userCount" label="用户数" width="90" />
+          <el-table-column label="操作" width="110">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="showAgencyStats(row.agency)">查看明细</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -405,7 +540,21 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12"><el-form-item label="封面"><el-input v-model="courseForm.cover" /></el-form-item></el-col>
+          <el-col :span="12">
+            <el-form-item label="封面">
+              <file-upload v-model="courseForm.cover" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="详情图">
+              <file-upload v-model="courseForm.detailCover" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="课程视频">
+              <file-upload v-model="courseForm.defaultVideoUrl" :limit="1" :file-size="1024" :file-type="['mp4', 'mov', 'm4v', 'webm']" />
+            </el-form-item>
+          </el-col>
           <el-col :span="12"><el-form-item label="排序"><el-input-number v-model="courseForm.sort" :min="0" style="width: 100%" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="课程节数"><el-input-number v-model="courseForm.totalLessons" :min="0" style="width: 100%" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="状态"><el-switch v-model="courseForm.status" active-value="published" inactive-value="draft" active-text="发布" inactive-text="草稿" /></el-form-item></el-col>
@@ -431,6 +580,9 @@
             <el-option label="资料" value="lecture" />
             <el-option label="试卷" value="paper" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="上传文件">
+          <file-upload v-model="docForm.fileUrl" :limit="1" :file-size="500" :file-type="['pdf', 'doc', 'docx', 'ppt', 'pptx', 'mp4', 'mov', 'm4v', 'webm', 'zip']" />
         </el-form-item>
         <el-form-item label="文件地址"><el-input v-model="docForm.fileUrl" /></el-form-item>
         <el-form-item label="文件类型"><el-input v-model="docForm.fileType" /></el-form-item>
@@ -469,7 +621,9 @@ import useUserStore from '@/store/modules/user'
 import {
   addCourse,
   addOrder,
+  activateCourseByCode,
   closeOrder,
+  deleteActivationCode,
   deleteCourse,
   deleteDoc,
   deleteQuestion,
@@ -477,6 +631,7 @@ import {
   getCourseDashboard,
   getStudyData,
   handleAuthRequest,
+  listAgencyStats,
   listActivationCodes,
   listAuthRequests,
   listCourses,
@@ -496,6 +651,7 @@ const userStore = useUserStore()
 const loading = ref(false)
 const dashboard = reactive({})
 const courseQuery = reactive({ stage: '', kind: '' })
+const userQuery = reactive({ keyword: '', role: '', status: '' })
 const courseList = ref([])
 const courseOptionList = ref([])
 const docList = ref([])
@@ -504,6 +660,7 @@ const userList = ref([])
 const authList = ref([])
 const orderList = ref([])
 const activationList = ref([])
+const agencyList = ref([])
 const agencyStats = ref(null)
 const studyData = reactive({
   attempts: [],
@@ -521,8 +678,19 @@ const courseForm = reactive(defaultCourseForm())
 const docForm = reactive(defaultDocForm())
 const questionForm = reactive(defaultQuestionForm())
 const orderForm = reactive({ userId: '56596', courseId: 'gk-math-full', cardCode: '', cardType: 'year', studentName: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
+const codeActivateForm = reactive({ userId: '56596', code: '', studentName: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
+const activationQuery = reactive({ keyword: '', status: '', owner: '' })
 const activationForm = reactive({ id: '', code: '', courseId: 'gk-math-full', cardType: 'year', ownerUserId: '33075', status: 'available', remark: '' })
 const ratingOptions = [1, 2, 3, 4, 5]
+const userRoleOptions = [
+  { label: '学生', value: 'student' },
+  { label: '分机构', value: 'agency_admin' },
+  { label: '管理员', value: 'admin' }
+]
+const userStatusOptions = [
+  { label: '正常', value: 'active' },
+  { label: '禁用', value: 'disabled' }
+]
 
 const summaryCards = computed(() => [
   { label: '课程数', value: dashboard.courseTotal || 0 },
@@ -533,7 +701,35 @@ const summaryCards = computed(() => [
   { label: '待复盘错题', value: dashboard.wrongTotal || 0 }
 ])
 const ratingStats = computed(() => dashboard.ratingStats || {})
+const activationStats = computed(() => dashboard.activationStats || {})
 const isRootAdmin = computed(() => String(userStore.id) === '1' || userStore.name === 'admin')
+const activationSummaryCards = computed(() => [
+  { label: '已生成激活码', value: activationStats.value.generated || activationList.value.length || 0 },
+  { label: '已分配激活码', value: activationStats.value.assigned || 0 },
+  { label: '未分配激活码', value: activationStats.value.unassigned || 0 },
+  { label: '已经使用激活码', value: activationStats.value.used || 0 },
+  { label: '分配未使用', value: activationStats.value.assignedUnused || 0 },
+  { label: '锁定不可用', value: activationStats.value.locked || 0 }
+])
+const filteredActivationList = computed(() => {
+  const keyword = activationQuery.keyword.trim().toLowerCase()
+  return activationList.value.filter(item => {
+    const text = `${item.code || ''} ${item.courseTitle || ''} ${item.ownerName || ''} ${item.ownerUserId || ''} ${item.studentName || ''}`.toLowerCase()
+    const statusMatched = !activationQuery.status || item.status === activationQuery.status
+    const ownerMatched = !activationQuery.owner || String(item.ownerUserId || '') === String(activationQuery.owner)
+    return statusMatched && ownerMatched && (!keyword || text.includes(keyword))
+  })
+})
+const filteredUserList = computed(() => {
+  const keyword = userQuery.keyword.trim().toLowerCase()
+  return userList.value.filter(user => {
+    const text = `${user.id || ''} ${user.name || ''} ${user.phone || ''} ${user.organizationName || ''}`.toLowerCase()
+    const roleMatched = !userQuery.role || user.role === userQuery.role
+    const statusMatched = !userQuery.status || (user.status || 'active') === userQuery.status
+    const keywordMatched = !keyword || text.includes(keyword)
+    return roleMatched && statusMatched && keywordMatched
+  })
+})
 const courseOptions = computed(() => (courseOptionList.value.length ? courseOptionList.value : courseList.value).map(course => ({
   ...course,
   optionLabel: `${cleanCourseName(course.courseName || course.title || course.id)}（${course.id}）`
@@ -552,6 +748,7 @@ async function loadAll() {
     loadQuestionsData(),
     loadUsersData(),
     loadActivationData(),
+    loadAgencyData(),
     loadAuthData(),
     loadOrdersData(),
     loadStudyData()
@@ -598,6 +795,11 @@ async function loadActivationData() {
   activationList.value = res.data || []
 }
 
+async function loadAgencyData() {
+  const res = await listAgencyStats()
+  agencyList.value = res.data || []
+}
+
 async function loadAuthData() {
   const res = await listAuthRequests()
   authList.value = res.data || []
@@ -617,6 +819,26 @@ function resetCourseQuery() {
   courseQuery.stage = ''
   courseQuery.kind = ''
   loadCourses()
+}
+
+function resetUserQuery() {
+  userQuery.keyword = ''
+  userQuery.role = ''
+  userQuery.status = ''
+}
+
+async function saveUser(row) {
+  await updateUserRole(row.id, {
+    name: row.name,
+    phone: row.phone,
+    role: row.role || 'student',
+    status: row.status || 'active',
+    organizationName: row.organizationName || '',
+    activationQuota: row.activationQuota || 0,
+    remark: row.remark || ''
+  })
+  ElMessage.success('用户信息已保存')
+  await Promise.all([loadUsersData(), loadDashboard()])
 }
 
 function openCourseDialog(row) {
@@ -714,6 +936,17 @@ async function submitOrder() {
   await Promise.all([loadOrdersData(), loadDashboard()])
 }
 
+async function submitCodeActivation() {
+  if (!codeActivateForm.userId || !codeActivateForm.code) {
+    ElMessage.warning('请填写用户ID和激活码')
+    return
+  }
+  await activateCourseByCode({ ...codeActivateForm })
+  ElMessage.success('激活码已为该用户开通课程')
+  Object.assign(codeActivateForm, { userId: codeActivateForm.userId, code: '', studentName: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
+  await Promise.all([loadOrdersData(), loadActivationData(), loadDashboard(), loadAgencyData()])
+}
+
 async function handleCloseOrder(row) {
   await ElMessageBox.confirm(`确认关闭「${row.userName}」的课程权限吗？`, '手动关闭权限', { type: 'warning' })
   await closeOrder(row.id)
@@ -729,7 +962,7 @@ async function submitActivationCode() {
   await saveActivationCode({ ...activationForm })
   ElMessage.success('激活码已保存')
   Object.assign(activationForm, { id: '', code: '', courseId: 'gk-math-full', cardType: 'year', ownerUserId: '33075', status: 'available', remark: '' })
-  await loadActivationData()
+  await Promise.all([loadActivationData(), loadDashboard(), loadAgencyData()])
 }
 
 function editActivationCode(row) {
@@ -746,8 +979,21 @@ function editActivationCode(row) {
 
 async function disableActivationCode(row) {
   await saveActivationCode({ id: row.id, status: row.status === 'disabled' ? 'available' : 'disabled' })
-  ElMessage.success(row.status === 'disabled' ? '激活码已启用' : '激活码已关闭')
-  await loadActivationData()
+  ElMessage.success(row.status === 'disabled' ? '激活码已解锁恢复正常' : '激活码已锁定，不能使用')
+  await Promise.all([loadActivationData(), loadDashboard(), loadAgencyData()])
+}
+
+async function unassignActivationCode(row) {
+  await saveActivationCode({ id: row.id, ownerUserId: '' })
+  ElMessage.success('激活码已取消分配')
+  await Promise.all([loadActivationData(), loadDashboard(), loadAgencyData()])
+}
+
+async function removeActivationCode(row) {
+  await ElMessageBox.confirm(`确认删除激活码「${row.code}」吗？`, '删除激活码', { type: 'warning' })
+  await deleteActivationCode(row.id)
+  ElMessage.success('激活码已删除')
+  await Promise.all([loadActivationData(), loadDashboard(), loadAgencyData()])
 }
 
 async function setAgencyAdmin(row) {
@@ -757,7 +1003,7 @@ async function setAgencyAdmin(row) {
     activationQuota: row.activationQuota || 100
   })
   ElMessage.success('已设置为分机构管理账号')
-  await loadUsersData()
+  await Promise.all([loadUsersData(), loadDashboard(), loadAgencyData()])
   await showAgencyStats(row)
 }
 
@@ -796,6 +1042,7 @@ function defaultCourseForm() {
     introduction: '',
     cover: '',
     detailCover: '',
+    defaultVideoUrl: '',
     studyCount: 0,
     totalLessons: 0,
     totalDuration: '',
@@ -811,7 +1058,7 @@ function defaultDocForm() {
     courseId: 'gk-math-full',
     category: 'lecture',
     title: '',
-    fileUrl: '#',
+    fileUrl: '',
     fileType: 'PDF',
     size: '',
     visible: true
@@ -869,6 +1116,10 @@ function defaultQuestionForm() {
 }
 
 .toolbar-row {
+  margin-bottom: 12px;
+}
+
+.user-filter {
   margin-bottom: 12px;
 }
 
