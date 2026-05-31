@@ -542,12 +542,12 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="封面">
-              <file-upload v-model="courseForm.cover" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+              <image-upload v-model="courseForm.cover" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="详情图">
-              <file-upload v-model="courseForm.detailCover" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+              <image-upload v-model="courseForm.detailCover" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
