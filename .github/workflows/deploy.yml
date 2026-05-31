@@ -83,3 +83,54 @@ jobs:
           retry 3 timeout 60s ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "grep -R -n -E 'server_name|root|listen .*443|ssl_certificate' /www/server/panel/vhost/nginx /etc/nginx 2>/dev/null | grep -C 3 'wkht.oksja.cn' || true"
           echo "Checking wkht content served locally..."
           retry 3 timeout 60s ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "set -e; echo 'DEPLOY_PATH index:'; ls -l '$DEPLOY_PATH/index.html'; grep -oE '(static|assets)/[^\"'\'']+' '$DEPLOY_PATH/index.html' | head -10 || true; echo 'HTTP localhost:'; curl -s -H 'Host: wkht.oksja.cn' http://127.0.0.1/ | grep -oE '(static|assets)/[^\"'\'']+' | head -10 || true; echo 'HTTPS localhost:'; curl -ks --resolve wkht.oksja.cn:443:127.0.0.1 https://wkht.oksja.cn/ | grep -oE '(static|assets)/[^\"'\'']+' | head -10 || true; echo 'Old wkht index locations:'; grep -Rsl 'index-R1nsTbLx\|index-zlBNNc_e' /www/wwwroot /www/server 2>/dev/null | head -20 || true"
+          echo "Ensuring wkht HTTPS vhost points to admin root..."
+          ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
+          set -euo pipefail
+          CONF="/www/server/panel/vhost/nginx/wkht.oksja.cn.conf"
+          MARK_BEGIN="# BEGIN wkht-admin-ssl"
+          MARK_END="# END wkht-admin-ssl"
+          cp "$CONF" "$CONF.bak_$(date +%Y%m%d%H%M%S)"
+          if [ ! -f /etc/letsencrypt/live/wkht.oksja.cn/fullchain.pem ] && command -v certbot >/dev/null 2>&1; then
+            certbot certonly --webroot -w "$DEPLOY_PATH" -d wkht.oksja.cn --non-interactive --agree-tos -m admin@oksja.cn || true
+          fi
+          CERT="/etc/letsencrypt/live/wkht.oksja.cn/fullchain.pem"
+          KEY="/etc/letsencrypt/live/wkht.oksja.cn/privkey.pem"
+          if [ ! -f "$CERT" ] || [ ! -f "$KEY" ]; then
+            CERT="/etc/letsencrypt/live/wk.oksja.cn/fullchain.pem"
+            KEY="/etc/letsencrypt/live/wk.oksja.cn/privkey.pem"
+          fi
+          awk -v begin="$MARK_BEGIN" -v end="$MARK_END" '
+            $0 == begin { skip=1; next }
+            $0 == end { skip=0; next }
+            !skip { print }
+          ' "$CONF" > "$CONF.tmp"
+          cat >> "$CONF.tmp" <<EOF
+$MARK_BEGIN
+server {
+    listen 443 ssl http2;
+    server_name wkht.oksja.cn;
+    root $DEPLOY_PATH;
+    index index.html;
+
+    ssl_certificate $CERT;
+    ssl_certificate_key $KEY;
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    location /prod-api/ {
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header REMOTE-HOST \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_pass http://127.0.0.1:8080/;
+    }
+}
+$MARK_END
+EOF
+          mv "$CONF.tmp" "$CONF"
+          nginx -t
+          nginx -s reload
+          curl -ks --resolve wkht.oksja.cn:443:127.0.0.1 https://wkht.oksja.cn/ | grep -oE '(static|assets)/[^"'\'']+' | head -10 || true
+REMOTE
