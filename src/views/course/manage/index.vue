@@ -519,47 +519,129 @@
       </el-tab-pane>
     </el-tabs>
 
-    <el-dialog v-model="courseOpen" :title="courseForm.id ? '编辑课程' : '新增课程'" width="720px" append-to-body>
-      <el-form :model="courseForm" label-width="96px">
-        <el-row :gutter="16">
-          <el-col :span="12"><el-form-item label="课程ID"><el-input v-model="courseForm.id" :disabled="!!editingCourseId" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="课程名称"><el-input v-model="courseForm.courseName" /></el-form-item></el-col>
-          <el-col :span="12">
-            <el-form-item label="阶段">
-              <el-select v-model="courseForm.stage" style="width: 100%">
-                <el-option label="中考" value="zhongkao" />
-                <el-option label="高考" value="gaokao" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="类型">
-              <el-select v-model="courseForm.kind" style="width: 100%">
-                <el-option label="试听课" value="trial" />
-                <el-option label="正式课" value="full" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="封面">
-              <image-upload v-model="courseForm.cover" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="详情图">
-              <image-upload v-model="courseForm.detailCover" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="课程视频">
-              <file-upload v-model="courseForm.defaultVideoUrl" :limit="1" :file-size="1024" :file-type="['mp4', 'mov', 'm4v', 'webm']" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12"><el-form-item label="排序"><el-input-number v-model="courseForm.sort" :min="0" style="width: 100%" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="课程节数"><el-input-number v-model="courseForm.totalLessons" :min="0" style="width: 100%" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="状态"><el-switch v-model="courseForm.status" active-value="published" inactive-value="draft" active-text="发布" inactive-text="草稿" /></el-form-item></el-col>
-          <el-col :span="24"><el-form-item label="简介"><el-input v-model="courseForm.introduction" type="textarea" :rows="3" /></el-form-item></el-col>
-        </el-row>
+    <el-dialog v-model="courseOpen" :title="courseForm.id ? '编辑课程' : '新增课程'" width="1120px" class="course-edit-dialog" append-to-body>
+      <el-form :model="courseForm" label-width="96px" class="course-edit-form">
+        <div class="course-edit-section base-section">
+          <div class="section-title">课程基础信息</div>
+          <el-row :gutter="18">
+            <el-col :span="12"><el-form-item label="课程ID"><el-input v-model="courseForm.id" :disabled="!!editingCourseId" /></el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="课程名称"><el-input v-model="courseForm.courseName" /></el-form-item></el-col>
+            <el-col :span="12">
+              <el-form-item label="阶段">
+                <el-select v-model="courseForm.stage" style="width: 100%">
+                  <el-option label="中考" value="zhongkao" />
+                  <el-option label="高考" value="gaokao" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="类型">
+                <el-select v-model="courseForm.kind" style="width: 100%">
+                  <el-option label="试听课" value="trial" />
+                  <el-option label="正式课" value="full" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="封面">
+                <image-upload v-model="courseForm.cover" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="详情图">
+                <image-upload v-model="courseForm.detailCover" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="24">
+              <el-form-item label="课程视频">
+                <file-upload v-model="courseForm.defaultVideoUrl" :limit="1" :file-size="1024" :file-type="['mp4', 'mov', 'm4v', 'webm']" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6"><el-form-item label="排序"><el-input-number v-model="courseForm.sort" :min="0" style="width: 100%" /></el-form-item></el-col>
+            <el-col :span="6"><el-form-item label="课程节数"><el-input-number v-model="courseForm.totalLessons" :min="0" style="width: 100%" /></el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="状态"><el-switch v-model="courseForm.status" active-value="published" inactive-value="draft" active-text="发布" inactive-text="草稿" /></el-form-item></el-col>
+            <el-col :span="24"><el-form-item label="简介"><el-input v-model="courseForm.introduction" type="textarea" :rows="3" /></el-form-item></el-col>
+          </el-row>
+        </div>
+
+        <div class="course-edit-section content-section">
+          <div class="content-toolbar">
+            <div>
+              <div class="section-title">课程内容编辑</div>
+              <div class="section-subtitle">按课程模块录入章节、视频和题库，章节排序可直接填写数字。</div>
+            </div>
+            <div class="content-mode-actions">
+              <el-button
+                v-for="item in contentModes"
+                :key="item.value"
+                :type="contentMode === item.value ? 'primary' : 'default'"
+                @click="switchContentMode(item.value)"
+              >
+                添加【{{ item.label }}】内容
+              </el-button>
+            </div>
+          </div>
+
+          <div v-if="contentMode !== 'knowledge'" class="chapter-editor">
+            <div class="chapter-sidebar">
+              <div class="sidebar-head">
+                <span>已建章节</span>
+                <el-button type="primary" plain icon="Plus" @click="addCourseChapter">新建章节</el-button>
+              </div>
+              <div v-if="!activeChapters.length" class="empty-editor">暂无章节，点击“新建章节”开始录入。</div>
+              <div
+                v-for="(chapter, index) in activeChapters"
+                :key="index"
+                class="chapter-card"
+                :class="{active: activeChapterIndex === index}"
+                @click="activeChapterIndex = index"
+              >
+                <el-input-number v-model="chapter.sort" :min="1" controls-position="right" class="chapter-sort" />
+                <el-input v-model="chapter.title" placeholder="输入章节名字" />
+                <el-button text type="danger" icon="Delete" @click.stop="removeCourseChapter(index)" />
+              </div>
+            </div>
+
+            <div class="chapter-main">
+              <div v-if="activeChapter" class="lesson-editor">
+                <div class="lesson-editor-head">
+                  <div>
+                    <strong>{{ activeChapter.title || '未命名章节' }}</strong>
+                    <span>共 {{ activeLessons.length }} 个内容</span>
+                  </div>
+                  <el-button type="primary" icon="Plus" @click="addCourseLesson">增加章节内容</el-button>
+                </div>
+
+                <div v-if="!activeLessons.length" class="empty-editor">当前章节还没有内容。</div>
+                <div v-for="(lesson, index) in activeLessons" :key="index" class="lesson-row">
+                  <el-input v-model="lesson.title" placeholder="输入章节内容名称" class="lesson-title-input" />
+                  <el-input-number v-model="lesson.sort" :min="1" controls-position="right" placeholder="排序" class="lesson-sort-input" />
+                  <file-upload v-model="lesson.videoUrl" :limit="1" :file-size="1024" :file-type="['mp4', 'mov', 'm4v', 'webm']" />
+                  <el-input v-model="lesson.questionBankName" placeholder="输入题库名称" class="question-bank-input" />
+                  <el-button text type="danger" icon="Delete" @click="removeCourseLesson(index)">删除此节内容</el-button>
+                </div>
+              </div>
+              <div v-else class="empty-editor large">请先新建或选择一个章节。</div>
+            </div>
+          </div>
+
+          <div v-else class="knowledge-editor">
+            <div class="knowledge-head">
+              <div>
+                <strong>知识巩固题库</strong>
+                <span>用于课程内章节扫雷、知识巩固等练习入口。</span>
+              </div>
+              <el-button type="primary" icon="Plus" @click="addCourseQuiz">添加题库</el-button>
+            </div>
+            <div v-if="!courseForm.quizzes.length" class="empty-editor">暂无题库，可点击“添加题库”。</div>
+            <div v-for="(quiz, index) in courseForm.quizzes" :key="index" class="quiz-edit-row">
+              <el-input v-model="quiz.name" placeholder="输入题库名称" />
+              <el-input v-model="quiz.status" placeholder="显示状态，如：未学习" />
+              <el-input v-model="quiz.action" placeholder="按钮文案，如：去测评" />
+              <el-button text type="danger" icon="Delete" @click="removeCourseQuiz(index)">删除</el-button>
+            </div>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="courseOpen = false">取消</el-button>
@@ -681,6 +763,13 @@ const orderForm = reactive({ userId: '56596', courseId: 'gk-math-full', cardCode
 const codeActivateForm = reactive({ userId: '56596', code: '', studentName: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
 const activationQuery = reactive({ keyword: '', status: '', owner: '' })
 const activationForm = reactive({ id: '', code: '', courseId: 'gk-math-full', cardType: 'year', ownerUserId: '33075', status: 'available', remark: '' })
+const contentMode = ref('review')
+const activeChapterIndex = ref(0)
+const contentModes = [
+  { label: '复习加强课', value: 'review' },
+  { label: '技巧绝招课', value: 'tactics' },
+  { label: '知识巩固', value: 'knowledge' }
+]
 const ratingOptions = [1, 2, 3, 4, 5]
 const userRoleOptions = [
   { label: '学生', value: 'student' },
@@ -734,6 +823,15 @@ const courseOptions = computed(() => (courseOptionList.value.length ? courseOpti
   ...course,
   optionLabel: `${cleanCourseName(course.courseName || course.title || course.id)}（${course.id}）`
 })))
+const activeVersionIndex = computed(() => contentMode.value === 'tactics' ? 1 : 0)
+const activeVersion = computed(() => contentMode.value === 'knowledge' ? null : ensureCourseVersion(activeVersionIndex.value))
+const activeChapters = computed(() => activeVersion.value ? activeVersion.value.chapters : [])
+const activeChapter = computed(() => activeChapters.value[activeChapterIndex.value] || null)
+const activeLessons = computed(() => {
+  if (!activeChapter.value) return []
+  if (!Array.isArray(activeChapter.value.items)) activeChapter.value.items = []
+  return activeChapter.value.items
+})
 
 onMounted(() => {
   loadAll()
@@ -827,6 +925,123 @@ function resetUserQuery() {
   userQuery.status = ''
 }
 
+function versionLabelForEditor(index) {
+  return index === 0 ? '复习加强课' : '技巧绝招课'
+}
+
+function ensureCourseVersion(index) {
+  if (!Array.isArray(courseForm.versions)) courseForm.versions = []
+  while (courseForm.versions.length <= index) {
+    courseForm.versions.push({ name: versionLabelForEditor(courseForm.versions.length), chapters: [] })
+  }
+  const version = courseForm.versions[index] || {}
+  if (!version.name) version.name = versionLabelForEditor(index)
+  if (!Array.isArray(version.chapters)) version.chapters = []
+  courseForm.versions[index] = version
+  return version
+}
+
+function normalizeCourseFormContent() {
+  ensureCourseVersion(0)
+  ensureCourseVersion(1)
+  if (!Array.isArray(courseForm.quizzes)) courseForm.quizzes = []
+  courseForm.versions.forEach((version, versionIndex) => {
+    version.name = versionIndex === 0 ? '2026版' : '绝招课'
+    if (!Array.isArray(version.chapters)) version.chapters = []
+    version.chapters.forEach((chapter, chapterIndex) => {
+      if (!chapter.title) chapter.title = `第${chapterIndex + 1}章`
+      if (!chapter.sort) chapter.sort = chapterIndex + 1
+      chapter.open = !!chapter.open
+      if (!Array.isArray(chapter.items)) chapter.items = []
+      chapter.items.forEach((lesson, lessonIndex) => {
+        if (!lesson.title) lesson.title = `章节内容${lessonIndex + 1}`
+        if (!lesson.sort) lesson.sort = lessonIndex + 1
+        lesson.open = !!lesson.open
+        if (!Array.isArray(lesson.children) || !lesson.children.length) {
+          lesson.children = [
+            { name: '视频课程', type: 1, total: 1, read: 0 },
+            { name: '真题讲练', type: 2, total: 0, read: 0 }
+          ]
+        }
+        if (lesson.videoUrl) lesson.children[0].videoUrl = lesson.videoUrl
+        if (lesson.questionBankName) lesson.children[1].questionBankName = lesson.questionBankName
+      })
+      chapter.items.sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0))
+    })
+    version.chapters.sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0))
+  })
+  courseForm.chapters = courseForm.versions[0].chapters
+}
+
+function switchContentMode(mode) {
+  contentMode.value = mode
+  activeChapterIndex.value = 0
+  if (mode !== 'knowledge') ensureCourseVersion(activeVersionIndex.value)
+  if (!Array.isArray(courseForm.quizzes)) courseForm.quizzes = []
+}
+
+function addCourseChapter() {
+  const version = ensureCourseVersion(activeVersionIndex.value)
+  const next = version.chapters.length + 1
+  version.chapters.push({ title: `新建章节${next}`, sort: next, open: true, items: [] })
+  activeChapterIndex.value = version.chapters.length - 1
+}
+
+function removeCourseChapter(index) {
+  const version = ensureCourseVersion(activeVersionIndex.value)
+  version.chapters.splice(index, 1)
+  activeChapterIndex.value = Math.max(0, Math.min(activeChapterIndex.value, version.chapters.length - 1))
+}
+
+function addCourseLesson() {
+  if (!activeChapter.value) addCourseChapter()
+  const chapter = activeChapter.value
+  if (!Array.isArray(chapter.items)) chapter.items = []
+  const next = chapter.items.length + 1
+  chapter.items.push({
+    title: '',
+    sort: next,
+    open: false,
+    videoUrl: '',
+    questionBankName: '',
+    durationMinutes: 0,
+    children: [
+      { name: '视频课程', type: 1, total: 1, read: 0 },
+      { name: '真题讲练', type: 2, total: 0, read: 0 }
+    ]
+  })
+}
+
+function removeCourseLesson(index) {
+  if (!activeChapter.value || !Array.isArray(activeChapter.value.items)) return
+  activeChapter.value.items.splice(index, 1)
+}
+
+function addCourseQuiz() {
+  if (!Array.isArray(courseForm.quizzes)) courseForm.quizzes = []
+  courseForm.quizzes.push({ name: '', status: '未学习', action: '去测评' })
+}
+
+function removeCourseQuiz(index) {
+  if (!Array.isArray(courseForm.quizzes)) return
+  courseForm.quizzes.splice(index, 1)
+}
+
+function editableLessonCount(chapters = []) {
+  return chapters.reduce((total, chapter) => {
+    const items = Array.isArray(chapter.items) ? chapter.items : []
+    return total + items.filter(item => item && item.title).length
+  }, 0)
+}
+
+function coursePayloadForSave() {
+  normalizeCourseFormContent()
+  const payload = JSON.parse(JSON.stringify(courseForm))
+  const count = editableLessonCount(payload.chapters || [])
+  if (count > 0) payload.totalLessons = count
+  return payload
+}
+
 async function saveUser(row) {
   await updateUserRole(row.id, {
     name: row.name,
@@ -847,11 +1062,14 @@ function openCourseDialog(row) {
   if (!courseForm.title && courseForm.courseName) {
     courseForm.title = courseForm.courseName.replace(/[《》]/g, '').replace('2026', '')
   }
+  normalizeCourseFormContent()
+  contentMode.value = 'review'
+  activeChapterIndex.value = 0
   courseOpen.value = true
 }
 
 async function submitCourse() {
-  const payload = { ...courseForm }
+  const payload = coursePayloadForSave()
   if (!payload.id && editingCourseId.value) {
     payload.id = editingCourseId.value
   }
@@ -1048,7 +1266,13 @@ function defaultCourseForm() {
     totalDuration: '',
     practiceDuration: '',
     status: 'published',
-    sort: 0
+    sort: 0,
+    versions: [
+      { name: '2026版', chapters: [] },
+      { name: '绝招课', chapters: [] }
+    ],
+    chapters: [],
+    quizzes: []
   }
 }
 
@@ -1182,5 +1406,182 @@ function defaultQuestionForm() {
   margin-top: 8px;
   color: #1f2937;
   font-size: 22px;
+}
+
+:deep(.course-edit-dialog .el-dialog__body) {
+  max-height: 72vh;
+  overflow: auto;
+  padding-top: 8px;
+}
+
+.course-edit-form {
+  color: #1f2937;
+}
+
+.course-edit-section {
+  padding: 18px;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.course-edit-section + .course-edit-section {
+  margin-top: 16px;
+}
+
+.base-section {
+  background: #fff;
+}
+
+.section-title {
+  margin-bottom: 14px;
+  color: #111827;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.section-subtitle {
+  margin-top: -8px;
+  color: #697386;
+  font-size: 13px;
+}
+
+.content-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.content-mode-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.content-mode-actions .el-button {
+  margin-left: 0;
+}
+
+.chapter-editor {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.chapter-sidebar,
+.chapter-main,
+.knowledge-editor {
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+}
+
+.sidebar-head,
+.lesson-editor-head,
+.knowledge-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sidebar-head span,
+.lesson-editor-head strong,
+.knowledge-head strong {
+  color: #111827;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.lesson-editor-head span,
+.knowledge-head span {
+  margin-left: 10px;
+  color: #697386;
+  font-size: 13px;
+}
+
+.chapter-card {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.chapter-card + .chapter-card {
+  margin-top: 10px;
+}
+
+.chapter-card.active {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+
+.chapter-sort {
+  width: 72px;
+}
+
+.lesson-row,
+.quiz-edit-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) 96px minmax(160px, 1fr) minmax(150px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.lesson-row + .lesson-row,
+.quiz-edit-row + .quiz-edit-row {
+  margin-top: 10px;
+}
+
+.lesson-sort-input {
+  width: 96px;
+}
+
+.empty-editor {
+  padding: 20px;
+  border: 1px dashed #cfd8e6;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #697386;
+  text-align: center;
+  font-size: 13px;
+}
+
+.empty-editor.large {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 1180px) {
+  .chapter-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-row,
+  .quiz-edit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-sort-input,
+  .question-bank-input,
+  .lesson-title-input {
+    width: 100%;
+  }
 }
 </style>
