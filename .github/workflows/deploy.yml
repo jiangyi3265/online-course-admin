@@ -111,6 +111,7 @@ jobs:
               server_name wkht.oksja.cn;
               root $DEPLOY_PATH;
               index index.html;
+              client_max_body_size 1100m;
 
               ssl_certificate $CERT;
               ssl_certificate_key $KEY;
@@ -120,6 +121,8 @@ jobs:
               }
 
               location /prod-api/ {
+                  client_max_body_size 1100m;
+                  proxy_request_buffering off;
                   proxy_set_header Host \$http_host;
                   proxy_set_header X-Real-IP \$remote_addr;
                   proxy_set_header REMOTE-HOST \$remote_addr;
