@@ -187,3 +187,18 @@ export function getStudyData() {
     method: 'get',
   })
 }
+
+export function getFrontendSettings() {
+  return request({
+    url: '/course/admin/settings',
+    method: 'get',
+  })
+}
+
+export function saveFrontendSettings(data) {
+  return request({
+    url: '/course/admin/settings',
+    method: 'post',
+    data,
+  })
+}

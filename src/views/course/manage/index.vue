@@ -64,6 +64,88 @@
         </el-table>
       </el-tab-pane>
 
+      <el-tab-pane label="前端配置" name="frontend">
+        <el-card shadow="never" class="admin-block">
+          <template #header>
+            <div class="block-head">
+              <span>首页轮播图</span>
+              <el-button type="primary" icon="Plus" @click="addHomeBanner">添加图片</el-button>
+            </div>
+          </template>
+          <el-table :data="frontendSettings.homeBanners" border>
+            <el-table-column label="预览" width="170">
+              <template #default="{ row }">
+                <el-image v-if="row.imageUrl" class="banner-preview" :src="row.imageUrl" fit="cover" />
+                <span v-else class="muted-text">未设置</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="标题" min-width="160">
+              <template #default="{ row }">
+                <el-input v-model="row.title" placeholder="轮播图标题" />
+              </template>
+            </el-table-column>
+            <el-table-column label="图片地址" min-width="280">
+              <template #default="{ row }">
+                <el-input v-model="row.imageUrl" placeholder="/static/home-banner.png 或 https://..." />
+              </template>
+            </el-table-column>
+            <el-table-column label="跳转地址" min-width="240">
+              <template #default="{ row }">
+                <el-input v-model="row.linkUrl" placeholder="可选，例如 /pages/course-detail/course-detail?id=..." />
+              </template>
+            </el-table-column>
+            <el-table-column label="排序" width="100">
+              <template #default="{ row }">
+                <el-input-number v-model="row.sort" :min="0" style="width: 82px" />
+              </template>
+            </el-table-column>
+            <el-table-column label="启用" width="90">
+              <template #default="{ row }">
+                <el-switch v-model="row.enabled" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="90">
+              <template #default="{ $index }">
+                <el-button link type="danger" icon="Delete" @click="removeHomeBanner($index)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-card shadow="never" class="admin-block">
+              <template #header>隐私政策</template>
+              <el-form label-width="76px">
+                <el-form-item label="标题">
+                  <el-input v-model="frontendSettings.agreements.privacy.title" />
+                </el-form-item>
+                <el-form-item label="内容">
+                  <el-input v-model="frontendSettings.agreements.privacy.content" type="textarea" :rows="14" />
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </el-col>
+          <el-col :span="12">
+            <el-card shadow="never" class="admin-block">
+              <template #header>用户协议</template>
+              <el-form label-width="76px">
+                <el-form-item label="标题">
+                  <el-input v-model="frontendSettings.agreements.user.title" />
+                </el-form-item>
+                <el-form-item label="内容">
+                  <el-input v-model="frontendSettings.agreements.user.content" type="textarea" :rows="14" />
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <div class="settings-actions">
+          <el-button type="primary" icon="Check" :loading="settingsSaving" @click="submitFrontendSettings">保存前端配置</el-button>
+        </div>
+      </el-tab-pane>
+
       <el-tab-pane label="资料管理" name="docs">
         <el-row class="toolbar-row">
           <el-button type="success" icon="Plus" @click="openDocDialog()">新增资料</el-button>
@@ -927,6 +1009,7 @@ import {
   deleteQuestion,
   getAgencySummary,
   getCourseDashboard,
+  getFrontendSettings,
   getStudyData,
   handleAuthRequest,
   listAgencyStats,
@@ -939,6 +1022,7 @@ import {
   listUsers,
   saveActivationCode,
   saveDoc,
+  saveFrontendSettings,
   saveQuestion,
   updateUserRole,
   updateCourse
@@ -967,6 +1051,8 @@ const studyData = reactive({
   aiChats: [],
   operationLogs: []
 })
+const settingsSaving = ref(false)
+const frontendSettings = reactive(defaultFrontendSettings())
 
 const courseOpen = ref(false)
 const docOpen = ref(false)
@@ -1208,7 +1294,8 @@ async function loadAll() {
     loadAgencyData(),
     loadAuthData(),
     loadOrdersData(),
-    loadStudyData()
+    loadStudyData(),
+    loadFrontendSettings()
   ])
 }
 
@@ -1270,6 +1357,88 @@ async function loadOrdersData() {
 async function loadStudyData() {
   const res = await getStudyData()
   Object.assign(studyData, res.data || {})
+}
+
+async function loadFrontendSettings() {
+  const res = await getFrontendSettings()
+  Object.assign(frontendSettings, mergeFrontendSettings(res.data || {}))
+}
+
+function defaultFrontendSettings() {
+  return {
+    homeBanners: [
+      {
+        id: 'banner-default',
+        title: '首页主图',
+        imageUrl: '/static/home-banner.png',
+        linkUrl: '',
+        sort: 1,
+        enabled: true,
+        remark: ''
+      }
+    ],
+    agreements: {
+      privacy: { type: 'privacy', title: '隐私政策', content: '请在后台配置隐私政策内容。' },
+      user: { type: 'user', title: '用户协议', content: '请在后台配置用户协议内容。' }
+    }
+  }
+}
+
+function mergeFrontendSettings(data = {}) {
+  const defaults = defaultFrontendSettings()
+  return {
+    homeBanners: Array.isArray(data.homeBanners) && data.homeBanners.length ? data.homeBanners.map(normalizeBannerForm) : defaults.homeBanners,
+    agreements: {
+      privacy: { ...defaults.agreements.privacy, ...(data.agreements?.privacy || {}) },
+      user: { ...defaults.agreements.user, ...(data.agreements?.user || {}) }
+    }
+  }
+}
+
+function normalizeBannerForm(item = {}) {
+  return {
+    id: item.id || `banner-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    title: item.title || '首页轮播图',
+    imageUrl: item.imageUrl || '',
+    linkUrl: item.linkUrl || '',
+    sort: Number(item.sort || 0),
+    enabled: item.enabled !== false,
+    remark: item.remark || ''
+  }
+}
+
+function addHomeBanner() {
+  frontendSettings.homeBanners.push(normalizeBannerForm({
+    sort: frontendSettings.homeBanners.length + 1,
+    enabled: true
+  }))
+}
+
+function removeHomeBanner(index) {
+  frontendSettings.homeBanners.splice(index, 1)
+}
+
+async function submitFrontendSettings() {
+  const validBanners = frontendSettings.homeBanners.filter(item => String(item.imageUrl || '').trim())
+  if (!validBanners.length) {
+    ElMessage.warning('请至少配置一张首页轮播图')
+    return
+  }
+  settingsSaving.value = true
+  try {
+    const payload = {
+      homeBanners: validBanners.map(normalizeBannerForm),
+      agreements: {
+        privacy: { ...frontendSettings.agreements.privacy, type: 'privacy' },
+        user: { ...frontendSettings.agreements.user, type: 'user' }
+      }
+    }
+    const res = await saveFrontendSettings(payload)
+    Object.assign(frontendSettings, mergeFrontendSettings(res.data || payload))
+    ElMessage.success('前端配置已保存')
+  } finally {
+    settingsSaving.value = false
+  }
 }
 
 function resetCourseQuery() {
@@ -2366,6 +2535,27 @@ function defaultQuestionForm() {
   color: #111827;
   font-size: 14px;
   font-weight: 700;
+}
+
+.block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.banner-preview {
+  width: 144px;
+  height: 64px;
+  display: block;
+  border-radius: 6px;
+  background: #f1f5f9;
+}
+
+.settings-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .question-picker-filters {
