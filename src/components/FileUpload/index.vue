@@ -123,8 +123,9 @@ function handleBeforeUpload(file) {
   // 校检文件类型
   if (props.fileType.length) {
     const fileName = file.name.split('.')
-    const fileExt = fileName[fileName.length - 1]
-    const isTypeOk = props.fileType.indexOf(fileExt) >= 0
+    const fileExt = fileName[fileName.length - 1].toLowerCase()
+    const allowTypes = props.fileType.map(item => String(item).toLowerCase())
+    const isTypeOk = allowTypes.indexOf(fileExt) >= 0
     if (!isTypeOk) {
       proxy.$modal.msgError(`文件格式不正确，请上传${props.fileType.join("/")}格式文件!`)
       return false
@@ -137,7 +138,7 @@ function handleBeforeUpload(file) {
   }
   // 校检文件大小
   if (props.fileSize) {
-    const isLt = file.size / 1024 / 1024 < props.fileSize
+    const isLt = file.size / 1024 / 1024 <= props.fileSize
     if (!isLt) {
       proxy.$modal.msgError(`上传文件大小不能超过 ${props.fileSize} MB!`)
       return false
@@ -155,8 +156,24 @@ function handleExceed() {
 
 // 上传失败
 function handleUploadError(err) {
-  proxy.$modal.msgError("上传文件失败")
+  const message = uploadErrorMessage(err)
+  proxy.$modal.msgError(message)
   proxy.$modal.closeLoading()
+}
+
+function uploadErrorMessage(err) {
+  const raw = err?.message || err?.statusText || ''
+  if (!raw) return "上传文件失败"
+  try {
+    const match = raw.match(/\{.*\}/)
+    if (match) {
+      const data = JSON.parse(match[0])
+      if (data.msg) return `上传文件失败：${data.msg}`
+    }
+  } catch (e) {
+    // keep the fallback message below
+  }
+  return `上传文件失败：${raw}`
 }
 
 // 上传成功回调
