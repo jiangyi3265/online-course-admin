@@ -106,6 +106,11 @@
         </div>
         <el-table :data="questionList" border>
           <el-table-column prop="stem" label="题干" min-width="280" show-overflow-tooltip />
+          <el-table-column label="题型" width="90">
+            <template #default="{ row }">
+              <el-tag :type="questionTypeTag(row)">{{ questionTypeLabel(row.questionType) }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="所属科目" width="150" show-overflow-tooltip>
             <template #default="{ row }">{{ questionSubjectLabel(row) }}</template>
           </el-table-column>
@@ -117,10 +122,12 @@
           </el-table-column>
           <el-table-column prop="province" label="省份" width="110" />
           <el-table-column prop="knowledge" label="知识点" width="140" />
-          <el-table-column label="选项" min-width="340" show-overflow-tooltip>
-            <template #default="{ row }">{{ (row.options || []).join(' / ') }}</template>
+          <el-table-column label="题目内容" min-width="340" show-overflow-tooltip>
+            <template #default="{ row }">{{ questionContentSummary(row) }}</template>
           </el-table-column>
-          <el-table-column prop="answer" label="答案序号" width="100" />
+          <el-table-column label="答案" width="150" show-overflow-tooltip>
+            <template #default="{ row }">{{ questionAnswerLabel(row) }}</template>
+          </el-table-column>
           <el-table-column label="视频解析" width="100">
             <template #default="{ row }">
               <el-tag :type="row.videoAnalysisUrl ? 'success' : 'info'">{{ row.videoAnalysisUrl ? '已上传' : '暂无' }}</el-tag>
@@ -171,7 +178,7 @@
                 <el-form-item label="学校"><el-input v-model="orderForm.schoolName" placeholder="必填" /></el-form-item>
                 <el-form-item label="地区"><el-input v-model="orderForm.region" placeholder="省份+市，如贵州省贵阳市" /></el-form-item>
                 <el-form-item class="form-actions">
-                  <el-button type="primary" icon="Plus" @click="submitOrder">开通课程</el-button>
+                  <el-button type="primary" icon="Plus" :loading="orderSubmitting" @click="submitOrder">开通课程</el-button>
                 </el-form-item>
               </el-form>
             </el-card>
@@ -809,9 +816,25 @@
 
     <el-dialog v-model="questionOpen" :title="questionForm.id ? '编辑题目' : '新增题目'" width="900px" class="question-edit-dialog" append-to-body>
       <el-form :model="questionForm" label-width="90px">
+        <el-form-item label="题型类型">
+          <el-radio-group v-model="questionForm.questionType" class="question-type-group">
+            <el-radio-button v-for="item in questionTypeOptions" :key="item.value" :label="item.value">{{ item.label }}</el-radio-button>
+          </el-radio-group>
+          <div class="field-hint">可填：选择题、填空题、主观题；复习测试和章节扫雷会按题型随机抽题。</div>
+        </el-form-item>
         <el-form-item label="题干"><el-input v-model="questionForm.stem" type="textarea" :rows="3" /></el-form-item>
-        <el-form-item label="选项"><el-input v-model="questionForm.optionsText" type="textarea" :rows="4" placeholder="每行一个选项" /></el-form-item>
-        <el-form-item label="答案序号"><el-input-number v-model="questionForm.answer" :min="0" :max="9" /></el-form-item>
+        <template v-if="questionForm.questionType === 'choice'">
+          <el-form-item label="选项"><el-input v-model="questionForm.optionsText" type="textarea" :rows="4" placeholder="每行一个选项" /></el-form-item>
+          <el-form-item label="答案序号"><el-input-number v-model="questionForm.answer" :min="0" :max="9" /></el-form-item>
+        </template>
+        <el-form-item v-else :label="questionForm.questionType === 'fill' ? '填空答案' : '参考答案'">
+          <el-input
+            v-model="questionForm.answerText"
+            type="textarea"
+            :rows="questionForm.questionType === 'fill' ? 2 : 4"
+            :placeholder="questionForm.questionType === 'fill' ? '多个可接受答案可换行，例如 2x / 2*x' : '填写主观题参考答案或评分要点'"
+          />
+        </el-form-item>
         <el-row :gutter="12">
           <el-col :span="8"><el-form-item label="所属科目"><el-input v-model="questionForm.subjectName" placeholder="如：高考数学" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="知识点"><el-input v-model="questionForm.knowledge" /></el-form-item></el-col>
@@ -846,6 +869,9 @@
           <el-button type="primary" plain @click="confirmQuestionCourseBind">确认加入</el-button>
         </div>
         <el-form-item label="解析"><el-input v-model="questionForm.analysis" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="图片解析">
+          <image-upload v-model="questionForm.analysisImageUrl" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+        </el-form-item>
         <el-form-item label="视频解析">
           <file-upload v-model="questionForm.videoAnalysisUrl" :limit="1" :file-size="500" :file-type="['mp4', 'mov', 'm4v', 'webm']" />
         </el-form-item>
@@ -872,6 +898,7 @@
             <span class="question-option-stem">{{ question.stem }}</span>
           </el-checkbox>
           <div class="question-option-meta">
+            <el-tag size="small" :type="questionTypeTag(question)">{{ questionTypeLabel(question.questionType) }}</el-tag>
             <el-tag v-if="question.knowledge" size="small">{{ question.knowledge }}</el-tag>
             <el-tag v-if="question.province" size="small" type="info">{{ question.province }}</el-tag>
           </div>
@@ -948,6 +975,7 @@ const editingCourseId = ref('')
 const courseForm = reactive(defaultCourseForm())
 const docForm = reactive(defaultDocForm())
 const questionForm = reactive(defaultQuestionForm())
+const orderSubmitting = ref(false)
 const orderRecordTab = ref('orders')
 const selectedUserStats = ref(null)
 const orderForm = reactive({ userId: '56596', courseId: 'gk-math-full', cardCode: '', cardType: 'year', studentName: '', gender: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
@@ -967,6 +995,11 @@ const contentModes = [
   { label: '复习加强课', value: 'review' },
   { label: '技巧绝招课', value: 'tactics' },
   { label: '知识巩固', value: 'knowledge' }
+]
+const questionTypeOptions = [
+  { label: '选择题', value: 'choice' },
+  { label: '填空题', value: 'fill' },
+  { label: '主观题', value: 'subjective' }
 ]
 const ratingOptions = [1, 2, 3, 4, 5]
 const genderOptions = ['男', '女']
@@ -1028,6 +1061,9 @@ const courseOptions = computed(() => (courseOptionList.value.length ? courseOpti
 })))
 const questionStatChips = computed(() => {
   const list = [{ label: '总题目数', value: questionList.value.length }]
+  questionTypeOptions.forEach(item => {
+    list.push({ label: `${item.label}数`, value: questionList.value.filter(question => normalizeQuestionType(question.questionType) === item.value).length })
+  })
   questionSubjectStats.forEach(label => {
     const normalized = label.replace(/\s/g, '')
     const value = questionList.value.filter(question => questionSubjectLabel(question).replace(/\s/g, '').includes(normalized)).length
@@ -1107,9 +1143,9 @@ const selectedUserStatCards = computed(() => {
     { label: '学习进度', value: stats.progressText || '暂无' }
   ]
 })
-const isLessonEditorMode = computed(() => contentMode.value === 'review' || contentMode.value === 'tactics')
-const activeVersionIndex = computed(() => contentMode.value === 'tactics' ? 1 : 0)
-const activeVersion = computed(() => contentMode.value === 'knowledge' ? null : ensureCourseVersion(activeVersionIndex.value))
+const isLessonEditorMode = computed(() => ['review', 'tactics', 'knowledge'].includes(contentMode.value))
+const activeVersionIndex = computed(() => contentMode.value === 'tactics' ? 1 : (contentMode.value === 'knowledge' ? 2 : 0))
+const activeVersion = computed(() => isLessonEditorMode.value ? ensureCourseVersion(activeVersionIndex.value) : null)
 const activeChapters = computed(() => activeVersion.value ? activeVersion.value.chapters : [])
 const activeChapter = computed(() => activeChapters.value[activeChapterIndex.value] || null)
 const activeLessons = computed(() => {
@@ -1118,15 +1154,11 @@ const activeLessons = computed(() => {
   return activeChapter.value.items
 })
 const activeQuizList = computed(() => {
-  if (contentMode.value === 'knowledge') {
-    if (!Array.isArray(courseForm.knowledgeQuizzes)) courseForm.knowledgeQuizzes = []
-    return courseForm.knowledgeQuizzes
-  }
   if (!Array.isArray(courseForm.quizzes)) courseForm.quizzes = []
   return courseForm.quizzes
 })
-const quizEditorTitle = computed(() => contentMode.value === 'knowledge' ? '知识巩固题库' : '章节扫雷题库')
-const quizEditorHint = computed(() => contentMode.value === 'knowledge' ? '用于课程内知识巩固练习入口。' : '用于课程内章节扫雷、阶段测评练习入口。')
+const quizEditorTitle = computed(() => '章节扫雷题库')
+const quizEditorHint = computed(() => '用于课程内章节扫雷、阶段测评练习入口。')
 const computedLessonTotal = computed(() => editableLessonCount(ensureCourseVersion(0).chapters || []))
 const questionKnowledgeOptions = computed(() => uniqueQuestionField('knowledge'))
 const questionProvinceOptions = computed(() => uniqueQuestionField('province'))
@@ -1253,7 +1285,7 @@ function resetUserQuery() {
 }
 
 function versionLabelForEditor(index) {
-  return index === 0 ? '复习加强课' : '技巧绝招课'
+  return index === 0 ? '复习加强课' : (index === 1 ? '技巧绝招课' : '知识巩固')
 }
 
 function ensureCourseVersion(index) {
@@ -1271,12 +1303,13 @@ function ensureCourseVersion(index) {
 function normalizeCourseFormContent() {
   ensureCourseVersion(0)
   ensureCourseVersion(1)
+  ensureCourseVersion(2)
   if (!Array.isArray(courseForm.quizzes)) courseForm.quizzes = []
   if (!Array.isArray(courseForm.knowledgeQuizzes)) courseForm.knowledgeQuizzes = []
   normalizeQuizList(courseForm.quizzes)
   normalizeQuizList(courseForm.knowledgeQuizzes)
   courseForm.versions.forEach((version, versionIndex) => {
-    version.name = versionIndex === 0 ? '2026版' : '绝招课'
+    version.name = versionIndex === 0 ? '2026版' : (versionIndex === 1 ? '绝招课' : '知识巩固')
     if (!Array.isArray(version.chapters)) version.chapters = []
     version.chapters.forEach((chapter, chapterIndex) => {
       if (!chapter.title) chapter.title = `第${chapterIndex + 1}章`
@@ -1284,13 +1317,16 @@ function normalizeCourseFormContent() {
       chapter.open = !!chapter.open
       if (!Array.isArray(chapter.items)) chapter.items = []
       chapter.items.forEach((lesson, lessonIndex) => {
+        const labels = lessonChildLabels(versionIndex === 1 ? 'tactics' : (versionIndex === 2 ? 'knowledge' : 'review'))
         if (!lesson.title) lesson.title = `章节内容${lessonIndex + 1}`
         if (!lesson.sort) lesson.sort = lessonIndex + 1
         lesson.open = !!lesson.open
         if (!Array.isArray(lesson.questionIds)) lesson.questionIds = []
         if (!Array.isArray(lesson.children)) lesson.children = []
-        if (!lesson.children[0]) lesson.children[0] = { name: '视频课程', type: 1, total: 1, read: 0 }
-        if (!lesson.children[1]) lesson.children[1] = { name: '真题讲练', type: 2, total: 0, read: 0 }
+        if (!lesson.children[0]) lesson.children[0] = { name: labels.video, type: 1, total: 1, read: 0 }
+        if (!lesson.children[1]) lesson.children[1] = { name: labels.practice, type: 2, total: 0, read: 0 }
+        if (!lesson.children[0].name) lesson.children[0].name = labels.video
+        if (!lesson.children[1].name) lesson.children[1].name = labels.practice
         if (lesson.videoUrl) lesson.children[0].videoUrl = lesson.videoUrl
         lesson.children[1].questionBankName = lesson.questionBankName || lesson.children[1].questionBankName || ''
         lesson.children[1].questionIds = lesson.questionIds
@@ -1339,6 +1375,7 @@ function addCourseLesson() {
   const chapter = activeChapter.value
   if (!Array.isArray(chapter.items)) chapter.items = []
   const next = chapter.items.length + 1
+  const labels = lessonChildLabels(contentMode.value)
   chapter.items.push({
     title: '',
     sort: next,
@@ -1348,10 +1385,16 @@ function addCourseLesson() {
     questionIds: [],
     durationMinutes: 0,
     children: [
-      { name: '视频课程', type: 1, total: 1, read: 0 },
-      { name: '真题讲练', type: 2, total: 0, read: 0 }
+      { name: labels.video, type: 1, total: 1, read: 0 },
+      { name: labels.practice, type: 2, total: 0, read: 0 }
     ]
   })
+}
+
+function lessonChildLabels(mode) {
+  if (mode === 'tactics') return { video: '技巧绝招课', practice: '真题讲练' }
+  if (mode === 'knowledge') return { video: '视频课程', practice: '巩固练习' }
+  return { video: '知识点巩固', practice: '复习测试' }
 }
 
 async function removeCourseLesson(index) {
@@ -1613,18 +1656,46 @@ async function removeDoc(row) {
 
 function openQuestionDialog(row) {
   Object.assign(questionForm, defaultQuestionForm(), row || {})
+  questionForm.questionType = normalizeQuestionType(questionForm.questionType || (row && row.options && row.options.length ? 'choice' : 'choice'))
   questionForm.optionsText = row && row.options ? row.options.join('\n') : ''
+  questionForm.answerText = row ? (row.answerText || (questionForm.questionType === 'choice' ? '' : String(row.answer || ''))) : ''
   questionForm.bindConfirmed = false
   questionOpen.value = true
 }
 
 async function submitQuestion() {
+  const questionType = normalizeQuestionType(questionForm.questionType)
+  const options = questionType === 'choice'
+    ? (questionForm.optionsText || '').split('\n').map(item => item.trim()).filter(Boolean)
+    : []
+  if (!String(questionForm.stem || '').trim()) {
+    ElMessage.warning('请填写题干')
+    return
+  }
+  if (questionType === 'choice' && options.length < 2) {
+    ElMessage.warning('选择题至少填写两个选项')
+    return
+  }
+  if (questionType === 'choice' && Number(questionForm.answer) >= options.length) {
+    ElMessage.warning('答案序号不能超出选项数量')
+    return
+  }
+  if (questionType !== 'choice' && !String(questionForm.answerText || '').trim()) {
+    ElMessage.warning(questionType === 'fill' ? '请填写填空答案' : '请填写主观题参考答案')
+    return
+  }
   if (questionForm.courseId && questionForm.chapterKey && questionForm.lessonKey) {
     applyQuestionBindLabels()
   }
   const payload = {
     ...questionForm,
-    options: (questionForm.optionsText || '').split('\n').map(item => item.trim()).filter(Boolean)
+    questionType,
+    options,
+    answer: questionType === 'choice' ? Number(questionForm.answer || 0) : undefined,
+    answerText: questionType === 'choice' ? '' : String(questionForm.answerText || '').trim(),
+    acceptableAnswers: questionType === 'fill'
+      ? String(questionForm.answerText || '').split('\n').map(item => item.trim()).filter(Boolean)
+      : []
   }
   delete payload.optionsText
   delete payload.chapterKey
@@ -1652,14 +1723,22 @@ async function handleAuth(row, status) {
 }
 
 async function submitOrder() {
+  if (orderSubmitting.value) return
   const required = ['userId', 'courseId', 'cardType', 'studentName', 'gender', 'recentExamScore', 'grade', 'schoolName', 'region']
   if (hasMissingFields(orderForm, required)) {
     ElMessage.warning('请填写用户、课程、卡类型、学生名、性别、分数、年级、学校和地区')
     return
   }
-  await addOrder({ ...orderForm })
-  ElMessage.success('课程已开通')
-  await Promise.all([loadOrdersData(), loadUsersData(), loadDashboard()])
+  orderSubmitting.value = true
+  try {
+    await addOrder({ ...orderForm })
+    ElMessage.success('课程已开通')
+    Object.assign(orderForm, { ...orderForm, cardCode: '', studentName: '', gender: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
+    fillOrderUserInfo(orderForm)
+    await Promise.all([loadOrdersData(), loadUsersData(), loadDashboard(), loadAgencyData()])
+  } finally {
+    orderSubmitting.value = false
+  }
 }
 
 async function submitCodeActivation() {
@@ -1770,6 +1849,38 @@ function questionSubjectLabel(row = {}) {
   return course ? cleanCourseName(course.courseName || course.title || course.id) : (row.courseId || '-')
 }
 
+function normalizeQuestionType(value) {
+  if (value === 'fill' || value === '填空' || value === '填空题') return 'fill'
+  if (value === 'subjective' || value === '主观' || value === '主观题') return 'subjective'
+  return 'choice'
+}
+
+function questionTypeLabel(value) {
+  const type = normalizeQuestionType(value)
+  if (type === 'fill') return '填空题'
+  if (type === 'subjective') return '主观题'
+  return '选择题'
+}
+
+function questionTypeTag(row = {}) {
+  const type = normalizeQuestionType(row.questionType)
+  if (type === 'fill') return 'warning'
+  if (type === 'subjective') return 'success'
+  return 'primary'
+}
+
+function questionContentSummary(row = {}) {
+  const type = normalizeQuestionType(row.questionType)
+  if (type === 'choice') return (row.options || []).join(' / ') || '-'
+  return type === 'fill' ? '填空作答' : '主观作答'
+}
+
+function questionAnswerLabel(row = {}) {
+  const type = normalizeQuestionType(row.questionType)
+  if (type === 'choice') return `序号 ${row.answer ?? 0}`
+  return row.answerText || row.answer || '-'
+}
+
 function questionBoundLabel(row = {}) {
   return [row.courseTitle || '', row.chapterTitle || '', row.lessonTitle || ''].filter(Boolean).join(' / ') || '-'
 }
@@ -1839,7 +1950,8 @@ function defaultCourseForm() {
     sort: 0,
     versions: [
       { name: '2026版', chapters: [] },
-      { name: '绝招课', chapters: [] }
+      { name: '绝招课', chapters: [] },
+      { name: '知识巩固', chapters: [] }
     ],
     chapters: [],
     quizzes: [],
@@ -1863,9 +1975,11 @@ function defaultDocForm() {
 function defaultQuestionForm() {
   return {
     id: '',
+    questionType: 'choice',
     stem: '',
     optionsText: '',
     answer: 0,
+    answerText: '',
     analysis: '',
     subjectName: '',
     knowledge: '',
@@ -1878,6 +1992,7 @@ function defaultQuestionForm() {
     chapterKey: '',
     lessonKey: '',
     bindConfirmed: false,
+    analysisImageUrl: '',
     videoAnalysisUrl: ''
   }
 }
@@ -2240,6 +2355,10 @@ function defaultQuestionForm() {
   border: 1px solid #e5eaf2;
   border-radius: 8px;
   background: #f8fafc;
+}
+
+.question-type-group {
+  margin-right: 12px;
 }
 
 .bind-title {
