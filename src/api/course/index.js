@@ -122,6 +122,13 @@ export function deleteActivationCode(id) {
   })
 }
 
+export function closeActivationCodeAuthorization(id) {
+  return request({
+    url: `/course/admin/activation-codes/${id}/close-authorization`,
+    method: 'put',
+  })
+}
+
 export function activateCourseByCode(data) {
   return request({
     url: '/course/admin/activate',
