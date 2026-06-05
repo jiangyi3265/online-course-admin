@@ -12,6 +12,99 @@
     </div>
 
     <el-tabs v-model="activeTab" class="course-tabs">
+      <el-tab-pane label="前端配置" name="frontend">
+        <el-card shadow="never" class="admin-block">
+          <template #header>
+            <div class="block-head">
+              <span>首页轮播图</span>
+              <el-button type="primary" icon="Plus" @click="addHomeBanner">添加图片</el-button>
+            </div>
+          </template>
+          <el-table :data="frontendSettings.homeBanners" border>
+            <el-table-column label="预览" width="170">
+              <template #default="{ row }">
+                <el-image v-if="row.imageUrl" class="banner-preview" :src="row.imageUrl" fit="cover" />
+                <span v-else class="muted-text">未设置</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="标题" min-width="160">
+              <template #default="{ row }">
+                <el-input v-model="row.title" placeholder="轮播图标题" />
+              </template>
+            </el-table-column>
+            <el-table-column label="图片地址" min-width="380">
+              <template #default="{ row }">
+                <div class="banner-image-cell">
+                  <image-upload
+                    v-model="row.imageUrl"
+                    class="banner-upload"
+                    :limit="1"
+                    :file-size="20"
+                    :file-type="['png', 'jpg', 'jpeg', 'webp']"
+                    :is-show-tip="false"
+                    :drag="false"
+                  />
+                  <el-input v-model="row.imageUrl" placeholder="/static/home-banner.png 或 https://..." />
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="跳转地址" min-width="240">
+              <template #default="{ row }">
+                <el-input v-model="row.linkUrl" placeholder="可选，例如 /pages/course-detail/course-detail?id=..." />
+              </template>
+            </el-table-column>
+            <el-table-column label="排序" width="100">
+              <template #default="{ row }">
+                <el-input-number v-model="row.sort" :min="0" style="width: 82px" />
+              </template>
+            </el-table-column>
+            <el-table-column label="启用" width="90">
+              <template #default="{ row }">
+                <el-switch v-model="row.enabled" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="90">
+              <template #default="{ $index }">
+                <el-button link type="danger" icon="Delete" @click="removeHomeBanner($index)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-card shadow="never" class="admin-block">
+              <template #header>隐私政策</template>
+              <el-form label-width="76px">
+                <el-form-item label="标题">
+                  <el-input v-model="frontendSettings.agreements.privacy.title" />
+                </el-form-item>
+                <el-form-item label="内容">
+                  <AgreementEditor v-model="frontendSettings.agreements.privacy.content" />
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </el-col>
+          <el-col :span="12">
+            <el-card shadow="never" class="admin-block">
+              <template #header>用户协议</template>
+              <el-form label-width="76px">
+                <el-form-item label="标题">
+                  <el-input v-model="frontendSettings.agreements.user.title" />
+                </el-form-item>
+                <el-form-item label="内容">
+                  <AgreementEditor v-model="frontendSettings.agreements.user.content" />
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <div class="settings-actions">
+          <el-button type="primary" icon="Check" :loading="settingsSaving" @click="submitFrontendSettings">保存前端配置</el-button>
+        </div>
+      </el-tab-pane>
+
       <el-tab-pane label="课程管理" name="courses">
         <el-form :model="courseQuery" inline>
           <el-form-item label="阶段">
@@ -62,88 +155,6 @@
             </template>
           </el-table-column>
         </el-table>
-      </el-tab-pane>
-
-      <el-tab-pane label="前端配置" name="frontend">
-        <el-card shadow="never" class="admin-block">
-          <template #header>
-            <div class="block-head">
-              <span>首页轮播图</span>
-              <el-button type="primary" icon="Plus" @click="addHomeBanner">添加图片</el-button>
-            </div>
-          </template>
-          <el-table :data="frontendSettings.homeBanners" border>
-            <el-table-column label="预览" width="170">
-              <template #default="{ row }">
-                <el-image v-if="row.imageUrl" class="banner-preview" :src="row.imageUrl" fit="cover" />
-                <span v-else class="muted-text">未设置</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="标题" min-width="160">
-              <template #default="{ row }">
-                <el-input v-model="row.title" placeholder="轮播图标题" />
-              </template>
-            </el-table-column>
-            <el-table-column label="图片地址" min-width="280">
-              <template #default="{ row }">
-                <el-input v-model="row.imageUrl" placeholder="/static/home-banner.png 或 https://..." />
-              </template>
-            </el-table-column>
-            <el-table-column label="跳转地址" min-width="240">
-              <template #default="{ row }">
-                <el-input v-model="row.linkUrl" placeholder="可选，例如 /pages/course-detail/course-detail?id=..." />
-              </template>
-            </el-table-column>
-            <el-table-column label="排序" width="100">
-              <template #default="{ row }">
-                <el-input-number v-model="row.sort" :min="0" style="width: 82px" />
-              </template>
-            </el-table-column>
-            <el-table-column label="启用" width="90">
-              <template #default="{ row }">
-                <el-switch v-model="row.enabled" />
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="90">
-              <template #default="{ $index }">
-                <el-button link type="danger" icon="Delete" @click="removeHomeBanner($index)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-card shadow="never" class="admin-block">
-              <template #header>隐私政策</template>
-              <el-form label-width="76px">
-                <el-form-item label="标题">
-                  <el-input v-model="frontendSettings.agreements.privacy.title" />
-                </el-form-item>
-                <el-form-item label="内容">
-                  <el-input v-model="frontendSettings.agreements.privacy.content" type="textarea" :rows="14" />
-                </el-form-item>
-              </el-form>
-            </el-card>
-          </el-col>
-          <el-col :span="12">
-            <el-card shadow="never" class="admin-block">
-              <template #header>用户协议</template>
-              <el-form label-width="76px">
-                <el-form-item label="标题">
-                  <el-input v-model="frontendSettings.agreements.user.title" />
-                </el-form-item>
-                <el-form-item label="内容">
-                  <el-input v-model="frontendSettings.agreements.user.content" type="textarea" :rows="14" />
-                </el-form-item>
-              </el-form>
-            </el-card>
-          </el-col>
-        </el-row>
-
-        <div class="settings-actions">
-          <el-button type="primary" icon="Check" :loading="settingsSaving" @click="submitFrontendSettings">保存前端配置</el-button>
-        </div>
       </el-tab-pane>
 
       <el-tab-pane label="资料管理" name="docs">
@@ -508,6 +519,8 @@
           </el-form-item>
           <el-form-item label="状态">
             <el-select v-model="activationQuery.status" clearable placeholder="全部状态" style="width: 140px">
+              <el-option label="已关闭授权" value="closed" />
+              <el-option label="已过期" value="expired" />
               <el-option label="可使用" value="available" />
               <el-option label="未分配" value="unassigned" />
               <el-option label="已分配" value="assigned" />
@@ -634,27 +647,20 @@
               <span class="rating-hint">计算方式：所有条数对应星数相加 ÷ 所有条数</span>
             </div>
           </template>
-          <div class="rating-overview">
-            <div class="rating-chip">
-              <span>平均星级</span>
-              <strong>{{ ratingStats.average || '0.0' }}星</strong>
-            </div>
-            <div class="rating-chip">
-              <span>评价总数</span>
-              <strong>{{ ratingStats.chapterTotal || 0 }}条</strong>
-            </div>
-            <div class="rating-chip rating-action-chip">
-              <span>明细</span>
-              <el-button type="primary" link @click="showRatingDetail()">详情</el-button>
-            </div>
-            <div class="rating-chip" v-for="star in ratingOptions" :key="star">
-              <span>{{ star }}星</span>
-              <strong>{{ starCount(ratingStats, star) }}</strong>
-            </div>
-          </div>
-
-          <el-table class="rating-course-table" :data="officialCourseRatingRows" border empty-text="暂无正式课程评分">
+          <el-table
+            class="rating-course-table"
+            :data="officialCourseRatingRows"
+            border
+            empty-text="暂无正式课程评分"
+            :row-class-name="ratingCourseRowClassName"
+            @row-click="showCourseRatingDetail"
+          >
             <el-table-column prop="name" label="正式课程" min-width="180" show-overflow-tooltip />
+            <el-table-column label="操作" width="90">
+              <template #default="{ row }">
+                <el-button link type="primary" @click.stop="showCourseRatingDetail(row)">详情查看</el-button>
+              </template>
+            </el-table-column>
             <el-table-column prop="average" label="均星" width="90" />
             <el-table-column prop="total" label="数量" width="90" />
             <el-table-column v-for="star in ratingOptions" :key="star" :label="`${star}星`" width="80">
@@ -664,8 +670,12 @@
         </el-card>
 
         <el-card v-if="selectedRatingDetail" shadow="never" class="admin-block rating-detail-panel">
-          <template #header>评分详情</template>
+          <template #header>评分详情：{{ selectedRatingCourse?.name || '-' }}</template>
           <div class="rating-detail-grid">
+            <div>
+              <span>正式课程</span>
+              <strong>{{ selectedRatingCourse?.name || '-' }}</strong>
+            </div>
             <div>
               <span>课程小节</span>
               <strong>{{ selectedRatingDetail.lessonTitle || selectedRatingDetail.name }}</strong>
@@ -681,15 +691,15 @@
           </div>
         </el-card>
 
-        <el-card shadow="never" class="admin-block">
-          <template #header>课程小节评分统计</template>
-          <el-table :data="ratingLessonRows" height="360" border empty-text="暂无小节评分" @row-click="showRatingDetail">
+        <el-card v-if="selectedRatingCourse" shadow="never" class="admin-block">
+          <template #header>课程小节评分统计：{{ selectedRatingCourse.name }}</template>
+          <el-table :data="selectedRatingLessonRows" height="360" border empty-text="暂无该课程小节评分" @row-click="showRatingDetail">
             <el-table-column prop="lessonTitle" label="课程小节" min-width="220" show-overflow-tooltip />
             <el-table-column prop="average" label="均星" width="100" />
             <el-table-column prop="total" label="数量" width="100" />
             <el-table-column label="操作" width="90">
               <template #default="{ row }">
-                <el-button link type="primary" @click.stop="showRatingDetail(row)">详情</el-button>
+                <el-button link type="primary" @click.stop="showRatingDetail(row)">详情查看</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -950,9 +960,15 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="questionPickerOpen" title="选择题库题目" width="860px" class="question-picker-dialog" append-to-body>
+    <el-dialog v-model="questionPickerOpen" title="选择题库题目" width="1040px" class="question-picker-dialog" append-to-body>
       <div class="question-picker-filters">
         <el-input v-model="questionPickerKeyword" clearable placeholder="搜索题干 / 知识点" />
+        <el-select v-model="questionPickerSubject" clearable filterable placeholder="所属科目">
+          <el-option v-for="item in questionSubjectOptions" :key="item" :label="item" :value="item" />
+        </el-select>
+        <el-select v-model="questionPickerType" clearable placeholder="题目类型">
+          <el-option v-for="item in questionTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
         <el-select v-model="questionPickerKnowledge" clearable filterable placeholder="知识点">
           <el-option v-for="item in questionKnowledgeOptions" :key="item" :label="item" :value="item" />
         </el-select>
@@ -967,6 +983,7 @@
           </el-checkbox>
           <div class="question-option-meta">
             <el-tag size="small" :type="questionTypeTag(question)">{{ questionTypeLabel(question.questionType) }}</el-tag>
+            <el-tag v-if="questionSubjectLabel(question) !== '-'" size="small" type="success">{{ questionSubjectLabel(question) }}</el-tag>
             <el-tag v-if="question.knowledge" size="small">{{ question.knowledge }}</el-tag>
             <el-tag v-if="question.province" size="small" type="info">{{ question.province }}</el-tag>
           </div>
@@ -1069,8 +1086,9 @@ import {
   updateUserRole,
   updateCourse
 } from '@/api/course'
+import AgreementEditor from './components/AgreementEditor.vue'
 
-const activeTab = ref('courses')
+const activeTab = ref('frontend')
 const loading = ref(false)
 const dashboard = reactive({})
 const courseQuery = reactive({ stage: '', kind: '' })
@@ -1109,6 +1127,7 @@ const userEditForm = reactive(defaultUserEditForm())
 const orderSubmitting = ref(false)
 const orderRecordTab = ref('orders')
 const selectedUserStats = ref(null)
+const selectedRatingCourseKey = ref('')
 const selectedRatingDetailId = ref('')
 const orderForm = reactive({ userId: '56596', courseId: 'gk-math-full', cardCode: '', cardType: 'year', studentName: '', gender: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
 const codeActivateForm = reactive({ userId: '56596', code: '', courseId: '', studentName: '', gender: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
@@ -1120,6 +1139,8 @@ const activeChapterIndex = ref(0)
 const questionPickerOpen = ref(false)
 const questionPickerTarget = ref(null)
 const questionPickerKeyword = ref('')
+const questionPickerSubject = ref('')
+const questionPickerType = ref('')
 const questionPickerKnowledge = ref('')
 const questionPickerProvince = ref('')
 const selectedQuestionIds = ref([])
@@ -1161,10 +1182,16 @@ const activationStats = computed(() => dashboard.activationStats || {})
 const courseStats = computed(() => dashboard.courseStats || {})
 const userStats = computed(() => dashboard.userStats || {})
 const ratingLessonRows = computed(() => ratingStats.value.details || ratingStats.value.lessons || [])
+const selectedRatingCourse = computed(() => {
+  if (!selectedRatingCourseKey.value) return null
+  return officialCourseRatingRows.value.find(row => ratingCourseKey(row) === selectedRatingCourseKey.value) || null
+})
+const selectedRatingLessonRows = computed(() => ratingLessonRowsForCourse(selectedRatingCourse.value))
 const selectedRatingDetail = computed(() => {
-  const rows = ratingLessonRows.value
-  if (!rows.length) return null
-  return rows.find(item => item.id === selectedRatingDetailId.value || item.lessonId === selectedRatingDetailId.value) || rows[0]
+  const rows = selectedRatingLessonRows.value
+  if (!selectedRatingCourse.value || !rows.length) return null
+  if (!selectedRatingDetailId.value) return rows[0]
+  return rows.find(item => ratingLessonKey(item) === selectedRatingDetailId.value) || rows[0]
 })
 const officialCourseRatingRows = computed(() => {
   const stats = ratingStats.value.courses || []
@@ -1194,11 +1221,17 @@ const officialCourseRatingRows = computed(() => {
   })
   return rows
 })
+const activeUsedActivationCount = computed(() => activationList.value.filter(isActivationActiveUsed).length)
+const expiredActivationCount = computed(() => activationList.value.filter(isActivationExpired).length)
+const closedActivationCount = computed(() => activationList.value.filter(isActivationClosed).length)
 const activationSummaryCards = computed(() => [
   { label: '已生成激活码', value: activationStats.value.generated || activationList.value.length || 0 },
   { label: '已分配激活码', value: activationStats.value.assigned || 0 },
   { label: '未分配激活码', value: activationStats.value.unassigned || 0 },
   { label: '已使用激活码', value: activationStats.value.used || 0 },
+  { label: '正常在用激活码', value: activationStats.value.activeUsed ?? activeUsedActivationCount.value },
+  { label: '已过期激活码', value: activationStats.value.expired ?? expiredActivationCount.value },
+  { label: '已关闭授权激活码', value: activationStats.value.closedAuthorization ?? closedActivationCount.value },
   { label: '已分配未使用激活码', value: activationStats.value.assignedUnused || 0 },
   { label: '锁定不可用', value: activationStats.value.locked || 0 }
 ])
@@ -1208,7 +1241,7 @@ const filteredActivationList = computed(() => {
   return activationList.value.filter(item => {
     const text = `${item.code || ''} ${item.courseTitle || ''} ${item.ownerName || ''} ${item.ownerUserId || ''} ${item.studentName || ''}`.toLowerCase()
     const rowStatus = activationFilterStatus(item)
-    const statusMatched = !activationQuery.status || rowStatus === activationQuery.status || (activationQuery.status === 'available' && !isActivationLocked(item) && item.status !== 'used')
+    const statusMatched = !activationQuery.status || rowStatus === activationQuery.status || (activationQuery.status === 'available' && isActivationAvailable(item))
     const ownerMatched = !owner || `${item.ownerUserId || ''} ${item.ownerName || ''}`.toLowerCase().includes(owner)
     return statusMatched && ownerMatched && (!keyword || text.includes(keyword))
   })
@@ -1224,7 +1257,7 @@ const filteredUserList = computed(() => {
   })
 })
 const agencyOwnerOptions = computed(() => userList.value
-  .filter(user => user.role === 'agency_admin' || user.organizationName)
+  .filter(user => user.role === 'agency_admin')
   .map(user => ({
     id: user.id,
     label: `${user.organizationName || user.name || user.id}（${user.id}）`
@@ -1300,16 +1333,21 @@ const activeQuizList = computed(() => {
 const quizEditorTitle = computed(() => '章节扫雷题库')
 const quizEditorHint = computed(() => '用于课程内章节扫雷、阶段测评练习入口。')
 const computedLessonTotal = computed(() => editableLessonCount(ensureCourseVersion(0).chapters || []))
+const questionSubjectOptions = computed(() => uniqueQuestionSubjects())
 const questionKnowledgeOptions = computed(() => uniqueQuestionField('knowledge'))
 const questionProvinceOptions = computed(() => uniqueQuestionField('province'))
 const filteredQuestionOptions = computed(() => {
   const keyword = questionPickerKeyword.value.trim().toLowerCase()
+  const subject = String(questionPickerSubject.value || '').replace(/\s/g, '')
   return questionList.value.filter(question => {
     const text = `${question.stem || ''} ${question.knowledge || ''} ${question.province || ''} ${questionSubjectLabel(question)}`.toLowerCase()
+    const questionSubject = String(questionSubjectLabel(question) || '').replace(/\s/g, '')
     const matchedKeyword = !keyword || text.includes(keyword)
+    const matchedSubject = !subject || questionSubject === subject
+    const matchedType = !questionPickerType.value || normalizeQuestionType(question.questionType) === questionPickerType.value
     const matchedKnowledge = !questionPickerKnowledge.value || question.knowledge === questionPickerKnowledge.value
     const matchedProvince = !questionPickerProvince.value || question.province === questionPickerProvince.value
-    return matchedKeyword && matchedKnowledge && matchedProvince
+    return matchedKeyword && matchedSubject && matchedType && matchedKnowledge && matchedProvince
   })
 })
 const questionChapterOptions = computed(() => {
@@ -1646,6 +1684,8 @@ function openQuestionPicker(type, target) {
   questionPickerTarget.value = { type, target }
   selectedQuestionIds.value = Array.isArray(target.questionIds) ? [...target.questionIds] : []
   questionPickerKeyword.value = ''
+  questionPickerSubject.value = ''
+  questionPickerType.value = ''
   questionPickerKnowledge.value = ''
   questionPickerProvince.value = ''
   questionPickerOpen.value = true
@@ -1667,6 +1707,15 @@ function applyQuestionSelection() {
 
 function uniqueQuestionField(field) {
   return [...new Set(questionList.value.map(item => String(item[field] || '').trim()).filter(Boolean))]
+}
+
+function uniqueQuestionSubjects() {
+  const subjects = new Set(questionSubjectStats)
+  questionList.value.forEach(question => {
+    const subject = String(questionSubjectLabel(question) || '').trim()
+    if (subject && subject !== '-') subjects.add(subject)
+  })
+  return [...subjects]
 }
 
 function resetQuestionCoursePath() {
@@ -2116,13 +2165,52 @@ function starCount(row = {}, star) {
   return counts[star] || counts[String(star)] || 0
 }
 
+function ratingCourseKey(row = {}) {
+  return String(row.id || row.courseId || row.name || '')
+}
+
+function ratingLessonKey(row = {}) {
+  return String(row.id || row.lessonId || row.name || '')
+}
+
+function ratingLessonRowsForCourse(course) {
+  if (!course) return []
+  const courseKey = ratingCourseKey(course)
+  const courseName = cleanCourseName(course.name || course.courseTitle || course.courseName || courseKey)
+  return ratingLessonRows.value.filter(item => {
+    const itemCourseId = String(item.courseId || '')
+    if (courseKey && itemCourseId && itemCourseId === courseKey) return true
+    const itemCourseName = cleanCourseName(item.courseTitle || item.subjectTitle || '')
+    return !!courseName && !!itemCourseName && itemCourseName === courseName
+  })
+}
+
+function findRatingCourseForLesson(row = {}) {
+  return officialCourseRatingRows.value.find(course => ratingLessonRowsForCourse(course).some(item => ratingLessonKey(item) === ratingLessonKey(row)))
+}
+
+function showCourseRatingDetail(row) {
+  if (!row) return
+  selectedRatingCourseKey.value = ratingCourseKey(row)
+  const firstLesson = ratingLessonRowsForCourse(row)[0]
+  selectedRatingDetailId.value = firstLesson ? ratingLessonKey(firstLesson) : ''
+}
+
 function showRatingDetail(row) {
-  const target = row || ratingLessonRows.value[0]
+  const target = row || selectedRatingLessonRows.value[0]
   if (!target) {
     ElMessage.info('暂无评分详情')
     return
   }
-  selectedRatingDetailId.value = target.id || target.lessonId || target.name
+  const course = findRatingCourseForLesson(target)
+  if (course) {
+    selectedRatingCourseKey.value = ratingCourseKey(course)
+  }
+  selectedRatingDetailId.value = ratingLessonKey(target)
+}
+
+function ratingCourseRowClassName({ row }) {
+  return ratingCourseKey(row) === selectedRatingCourseKey.value ? 'selected-rating-course-row' : ''
 }
 
 function questionSubjectLabel(row = {}) {
@@ -2182,7 +2270,33 @@ function isActivationLocked(row = {}) {
   return row.locked === true || row.status === 'disabled'
 }
 
+function isActivationClosed(row = {}) {
+  return row.authorizationClosed === true || row.displayStatus === '已关闭授权'
+}
+
+function isActivationExpired(row = {}) {
+  return row.expired === true || (row.status === 'used' && !isActivationClosed(row) && isPastDate(row.expiresAt))
+}
+
+function isActivationActiveUsed(row = {}) {
+  return row.activeUsed === true || (row.status === 'used' && !isActivationClosed(row) && !isActivationExpired(row))
+}
+
+function isActivationAvailable(row = {}) {
+  return row.status !== 'used' && !isActivationLocked(row) && !isActivationClosed(row) && !isActivationExpired(row)
+}
+
+function isPastDate(value = '') {
+  const text = String(value || '').trim()
+  if (!text) return false
+  const dateText = text.length <= 10 ? `${text.slice(0, 10)}T23:59:59` : text.replace(' ', 'T')
+  const time = new Date(dateText).getTime()
+  return Number.isFinite(time) && time < Date.now()
+}
+
 function activationFilterStatus(row = {}) {
+  if (isActivationClosed(row)) return 'closed'
+  if (isActivationExpired(row)) return 'expired'
   if (isActivationLocked(row)) return 'locked'
   if (row.status === 'used') return 'used'
   return row.ownerUserId ? 'assigned' : 'unassigned'
@@ -2193,16 +2307,22 @@ function activationStatusText(row = {}) {
     if (row === 'used') return '已使用'
     if (row === 'disabled') return '已锁定'
     if (row === 'available') return '可使用'
+    if (row === 'closed') return '已关闭授权'
+    if (row === 'expired') return '已过期'
     return row
   }
+  if (isActivationClosed(row)) return '已关闭授权'
+  if (isActivationExpired(row)) return '已过期'
   if (isActivationLocked(row)) return '已锁定'
-  if (row.status === 'used') return row.authorizationClosed ? '已关闭授权' : '已使用'
+  if (row.status === 'used') return '已使用'
   return row.ownerUserId ? '已分配' : '未分配'
 }
 
 function activationStatusTagType(row = {}) {
+  if (isActivationClosed(row)) return 'info'
+  if (isActivationExpired(row)) return 'warning'
   if (isActivationLocked(row)) return 'danger'
-  if (row.status === 'used') return row.authorizationClosed ? 'info' : 'success'
+  if (row.status === 'used') return 'success'
   return row.ownerUserId ? 'primary' : 'warning'
 }
 
@@ -2531,40 +2651,12 @@ function defaultUserEditForm() {
   font-weight: 400;
 }
 
-.rating-overview {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px;
-}
-
-.rating-chip {
-  min-height: 72px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px solid #e7eaf0;
-}
-
-.rating-chip span {
-  display: block;
-  color: #697386;
-  font-size: 13px;
-}
-
-.rating-chip strong {
-  display: block;
-  margin-top: 8px;
-  color: #1f2937;
-  font-size: 22px;
-}
-
-.rating-action-chip .el-button {
-  margin-top: 8px;
-  padding-left: 0;
-}
-
 .rating-course-table {
-  margin-top: 14px;
+  margin-top: 0;
+}
+
+.rating-course-table :deep(.selected-rating-course-row td) {
+  background: #eef6ff;
 }
 
 .rating-detail-panel {
@@ -2816,6 +2908,42 @@ function defaultUserEditForm() {
   background: #f1f5f9;
 }
 
+.banner-image-cell {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.banner-upload {
+  width: 58px;
+}
+
+.banner-upload :deep(.component-upload-image) {
+  display: flex;
+  align-items: center;
+}
+
+.banner-upload :deep(.el-upload-list--picture-card) {
+  display: flex;
+}
+
+.banner-upload :deep(.el-upload--picture-card),
+.banner-upload :deep(.el-upload-list--picture-card .el-upload-list__item) {
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  line-height: 48px;
+}
+
+.banner-upload :deep(.el-upload-list--picture-card .el-upload-list__item-thumbnail) {
+  object-fit: cover;
+}
+
+.banner-upload :deep(.el-upload__tip) {
+  display: none;
+}
+
 .settings-actions {
   margin-top: 16px;
   display: flex;
@@ -2824,7 +2952,7 @@ function defaultUserEditForm() {
 
 .question-picker-filters {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 180px 180px;
+  grid-template-columns: minmax(220px, 1fr) 160px 130px 160px 160px;
   gap: 10px;
   margin-bottom: 12px;
 }
