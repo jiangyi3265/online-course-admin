@@ -198,7 +198,21 @@
           </div>
         </div>
         <el-table :data="questionList" border>
-          <el-table-column prop="stem" label="题干" min-width="280" show-overflow-tooltip />
+          <el-table-column label="题干" min-width="300">
+            <template #default="{ row }">
+              <div class="question-preview-cell">
+                <span class="question-preview-text">{{ row.stem || (row.stemImageUrl ? '图片题干' : '-') }}</span>
+                <el-image
+                  v-if="row.stemImageUrl"
+                  class="question-thumb"
+                  :src="row.stemImageUrl"
+                  fit="cover"
+                  :preview-src-list="[row.stemImageUrl]"
+                  preview-teleported
+                />
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column label="题型" width="90">
             <template #default="{ row }">
               <el-tag :type="questionTypeTag(row)">{{ questionTypeLabel(row.questionType) }}</el-tag>
@@ -215,8 +229,24 @@
           </el-table-column>
           <el-table-column prop="province" label="省份" width="110" />
           <el-table-column prop="knowledge" label="知识点" width="140" />
-          <el-table-column label="题目内容" min-width="340" show-overflow-tooltip>
-            <template #default="{ row }">{{ questionContentSummary(row) }}</template>
+          <el-table-column label="题目内容" min-width="360">
+            <template #default="{ row }">
+              <div class="question-content-preview">
+                <span>{{ questionContentSummary(row) }}</span>
+                <div v-if="optionImageList(row).length" class="question-thumb-row">
+                  <el-image
+                    v-for="(url, index) in optionImageList(row)"
+                    :key="`${url}-${index}`"
+                    class="question-thumb"
+                    :src="url"
+                    fit="cover"
+                    :preview-src-list="optionImageList(row)"
+                    :initial-index="index"
+                    preview-teleported
+                  />
+                </div>
+              </div>
+            </template>
           </el-table-column>
           <el-table-column label="答案" width="150" show-overflow-tooltip>
             <template #default="{ row }">{{ questionAnswerLabel(row) }}</template>
@@ -891,9 +921,32 @@
           </el-radio-group>
           <div class="field-hint">可填：选择题、填空题、主观题；复习测试和章节扫雷会按题型随机抽题。</div>
         </el-form-item>
-        <el-form-item label="题干"><el-input v-model="questionForm.stem" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="题干">
+          <div class="question-media-editor">
+            <div class="question-media-pane">
+              <div class="pane-label">文字题干</div>
+              <el-input v-model="questionForm.stem" type="textarea" :rows="4" placeholder="输入题干文字" />
+            </div>
+            <div class="question-media-pane upload-pane">
+              <div class="pane-label">题干图片</div>
+              <image-upload v-model="questionForm.stemImageUrl" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+            </div>
+          </div>
+        </el-form-item>
         <template v-if="questionForm.questionType === 'choice'">
-          <el-form-item label="选项"><el-input v-model="questionForm.optionsText" type="textarea" :rows="4" placeholder="每行一个选项" /></el-form-item>
+          <el-form-item label="选项">
+            <div class="question-media-editor">
+              <div class="question-media-pane">
+                <div class="pane-label">文字选项</div>
+                <el-input v-model="questionForm.optionsText" type="textarea" :rows="4" placeholder="每行一个选项；如只有图片，可留空并按顺序上传图片" />
+              </div>
+              <div class="question-media-pane upload-pane">
+                <div class="pane-label">选项图片</div>
+                <image-upload v-model="questionForm.optionImageUrlsText" :limit="10" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+                <div class="field-hint">按上传顺序对应 A、B、C、D；无图片的选项可不上传。</div>
+              </div>
+            </div>
+          </el-form-item>
           <el-form-item label="答案序号"><el-input-number v-model="questionForm.answer" :min="0" :max="9" /></el-form-item>
         </template>
         <el-form-item v-else label="参考答案">
@@ -979,8 +1032,28 @@
       <el-checkbox-group v-model="selectedQuestionIds" class="question-picker-list">
         <div v-for="question in filteredQuestionOptions" :key="question.id" class="question-option-row">
           <el-checkbox :label="question.id">
-            <span class="question-option-stem">{{ question.stem }}</span>
+            <span class="question-option-stem">{{ question.stem || (question.stemImageUrl ? '图片题干' : '未填写题干') }}</span>
           </el-checkbox>
+          <div v-if="question.stemImageUrl || optionImageList(question).length" class="question-option-images">
+            <el-image
+              v-if="question.stemImageUrl"
+              class="question-picker-thumb"
+              :src="question.stemImageUrl"
+              fit="cover"
+              :preview-src-list="[question.stemImageUrl]"
+              preview-teleported
+            />
+            <el-image
+              v-for="(url, index) in optionImageList(question)"
+              :key="`${url}-${index}`"
+              class="question-picker-thumb"
+              :src="url"
+              fit="cover"
+              :preview-src-list="optionImageList(question)"
+              :initial-index="index"
+              preview-teleported
+            />
+          </div>
           <div class="question-option-meta">
             <el-tag size="small" :type="questionTypeTag(question)">{{ questionTypeLabel(question.questionType) }}</el-tag>
             <el-tag v-if="questionSubjectLabel(question) !== '-'" size="small" type="success">{{ questionSubjectLabel(question) }}</el-tag>
@@ -1948,6 +2021,8 @@ function openQuestionDialog(row) {
   Object.assign(questionForm, defaultQuestionForm(), row || {})
   questionForm.questionType = normalizeQuestionType(questionForm.questionType || (row && row.options && row.options.length ? 'choice' : 'choice'))
   questionForm.optionsText = row && row.options ? row.options.join('\n') : ''
+  questionForm.stemImageUrl = row ? (row.stemImageUrl || row.questionImageUrl || row.stemImage || '') : ''
+  questionForm.optionImageUrlsText = row ? mediaListText(row.optionImageUrls || row.optionImages || row.optionImageUrl) : ''
   questionForm.answerText = row ? (row.answerText || (questionForm.questionType === 'choice' ? '' : String(row.answer || ''))) : ''
   questionForm.bindConfirmed = false
   questionOpen.value = true
@@ -1955,18 +2030,25 @@ function openQuestionDialog(row) {
 
 async function submitQuestion() {
   const questionType = normalizeQuestionType(questionForm.questionType)
+  const stemImageUrl = String(questionForm.stemImageUrl || '').trim()
+  const optionImageUrls = questionType === 'choice' ? mediaList(questionForm.optionImageUrlsText) : []
   const options = questionType === 'choice'
-    ? (questionForm.optionsText || '').split('\n').map(item => item.trim()).filter(Boolean)
+    ? (questionForm.optionsText || '').split('\n').map(item => item.trim())
     : []
-  if (!String(questionForm.stem || '').trim()) {
-    ElMessage.warning('请填写题干')
+  while (options.length && !options[options.length - 1] && !optionImageUrls[options.length - 1]) {
+    options.pop()
+  }
+  const optionCount = Math.max(options.length, optionImageUrls.length)
+  while (options.length < optionCount) options.push('')
+  if (!String(questionForm.stem || '').trim() && !stemImageUrl) {
+    ElMessage.warning('请填写题干或上传题干图片')
     return
   }
-  if (questionType === 'choice' && options.length < 2) {
-    ElMessage.warning('选择题至少填写两个选项')
+  if (questionType === 'choice' && optionCount < 2) {
+    ElMessage.warning('选择题至少填写两个选项或上传两张选项图片')
     return
   }
-  if (questionType === 'choice' && Number(questionForm.answer) >= options.length) {
+  if (questionType === 'choice' && Number(questionForm.answer) >= optionCount) {
     ElMessage.warning('答案序号不能超出选项数量')
     return
   }
@@ -1981,6 +2063,8 @@ async function submitQuestion() {
     ...questionForm,
     questionType,
     options,
+    stemImageUrl,
+    optionImageUrls,
     answer: questionType === 'choice' ? Number(questionForm.answer || 0) : undefined,
     answerText: questionType === 'choice' ? '' : String(questionForm.answerText || '').trim(),
     acceptableAnswers: questionType === 'fill'
@@ -1988,6 +2072,7 @@ async function submitQuestion() {
       : []
   }
   delete payload.optionsText
+  delete payload.optionImageUrlsText
   delete payload.chapterKey
   delete payload.lessonKey
   delete payload.bindConfirmed
@@ -2239,9 +2324,32 @@ function questionTypeTag(row = {}) {
   return 'primary'
 }
 
+function mediaList(value) {
+  if (Array.isArray(value)) {
+    return value.map(item => String(item || '').trim()).filter(Boolean)
+  }
+  return String(value || '')
+    .split(/[\n,]/)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function mediaListText(value) {
+  return mediaList(value).join(',')
+}
+
+function optionImageList(row = {}) {
+  return mediaList(row.optionImageUrls || row.optionImages || row.optionImageUrl)
+}
+
 function questionContentSummary(row = {}) {
   const type = normalizeQuestionType(row.questionType)
-  if (type === 'choice') return (row.options || []).join(' / ') || '-'
+  if (type === 'choice') {
+    const options = Array.isArray(row.options) ? row.options : []
+    const text = options.map((item, index) => `${String.fromCharCode(65 + index)}. ${item || '图片选项'}`).join(' / ')
+    const imageCount = optionImageList(row).length
+    return [text, imageCount ? `${imageCount}张选项图` : ''].filter(Boolean).join('，') || '-'
+  }
   return type === 'fill' ? '填空作答' : '主观作答'
 }
 
@@ -2416,7 +2524,10 @@ function defaultQuestionForm() {
     id: '',
     questionType: 'choice',
     stem: '',
+    stemImageUrl: '',
     optionsText: '',
+    optionImageUrls: [],
+    optionImageUrlsText: '',
     answer: 0,
     answerText: '',
     analysis: '',
@@ -2584,6 +2695,45 @@ function defaultUserEditForm() {
   margin-top: 6px;
   color: #1f2937;
   font-size: 18px;
+}
+
+.question-preview-cell,
+.question-content-preview {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.question-preview-text {
+  color: #1f2937;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.question-thumb-row,
+.question-option-images {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.question-thumb,
+.question-picker-thumb {
+  display: block;
+  border-radius: 6px;
+  border: 1px solid #e5eaf2;
+  background: #f8fafc;
+}
+
+.question-thumb {
+  width: 56px;
+  height: 56px;
+}
+
+.question-picker-thumb {
+  width: 72px;
+  height: 54px;
 }
 
 .user-stats-panel {
@@ -2871,6 +3021,17 @@ function defaultUserEditForm() {
   gap: 14px;
 }
 
+.question-media-editor {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, .9fr);
+  gap: 14px;
+}
+
+.question-media-pane {
+  min-width: 0;
+}
+
 .reference-answer-pane {
   min-width: 0;
 }
@@ -2979,8 +3140,14 @@ function defaultUserEditForm() {
   white-space: normal;
 }
 
+.question-option-images {
+  margin-top: 8px;
+  padding-left: 24px;
+}
+
 .question-option-meta {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
   padding-left: 24px;
