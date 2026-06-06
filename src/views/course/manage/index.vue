@@ -416,6 +416,11 @@
               <el-option v-for="item in userStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
             </el-select>
           </el-form-item>
+          <el-form-item label="课程状态">
+            <el-select v-model="userQuery.courseStatus" clearable placeholder="全部课程" style="width: 140px">
+              <el-option v-for="item in userCourseStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
           <el-form-item>
             <el-button icon="Refresh" @click="resetUserQuery">重置</el-button>
           </el-form-item>
@@ -564,7 +569,14 @@
         </el-form>
 
         <el-table :data="filteredActivationList" border>
-          <el-table-column prop="code" label="激活码" width="170" />
+          <el-table-column label="激活码" width="210">
+            <template #default="{ row }">
+              <div class="activation-code-cell">
+                <span class="activation-code-text">{{ row.code }}</span>
+                <el-button link type="primary" @click="copyActivationCode(row.code)">复制</el-button>
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column label="课程" min-width="180">
             <template #default="{ row }">{{ row.courseTitle || (row.courseId ? courseLabel(row.courseId) : '激活时选择') }}</template>
           </el-table-column>
@@ -1165,7 +1177,7 @@ const activeTab = ref('frontend')
 const loading = ref(false)
 const dashboard = reactive({})
 const courseQuery = reactive({ stage: '', kind: '' })
-const userQuery = reactive({ keyword: '', role: '', status: '' })
+const userQuery = reactive({ keyword: '', role: '', status: '', courseStatus: '' })
 const courseList = ref([])
 const courseOptionList = ref([])
 const docList = ref([])
@@ -1238,6 +1250,11 @@ const userRoleOptions = [
 const userStatusOptions = [
   { label: '正常', value: 'active' },
   { label: '禁用', value: 'disabled' }
+]
+const userCourseStatusOptions = [
+  { label: '正常', value: 'active' },
+  { label: '已到期', value: 'expired' },
+  { label: '未开通', value: 'none' }
 ]
 const questionSubjectStats = ['高考数学', '高考语文', '高考英语', '高考物理', '高考化学', '高考政治', '高考历史', '高考生物', '高考地理', '中考语文', '中考数学', '中考英语', '中考物理', '中考化学']
 
@@ -1325,8 +1342,9 @@ const filteredUserList = computed(() => {
     const text = `${user.id || ''} ${user.name || ''} ${user.phone || ''} ${user.organizationName || ''}`.toLowerCase()
     const roleMatched = !userQuery.role || user.role === userQuery.role
     const statusMatched = !userQuery.status || (user.status || 'active') === userQuery.status
+    const courseStatusMatched = !userQuery.courseStatus || userCourseStatus(user) === userQuery.courseStatus
     const keywordMatched = !keyword || text.includes(keyword)
-    return roleMatched && statusMatched && keywordMatched
+    return roleMatched && statusMatched && courseStatusMatched && keywordMatched
   })
 })
 const agencyOwnerOptions = computed(() => userList.value
@@ -1616,6 +1634,43 @@ function resetUserQuery() {
   userQuery.keyword = ''
   userQuery.role = ''
   userQuery.status = ''
+  userQuery.courseStatus = ''
+}
+
+function userCourseStatus(user = {}) {
+  if (user.courseStatus) return user.courseStatus
+  const courses = Array.isArray(user.activatedCourses) ? user.activatedCourses : []
+  if (courses.some(course => !isPastDate(course.expiresAt || course.expiry))) return 'active'
+  if (courses.length || user.openCourseCount > 0 || user.openCourseNames || user.expiresAt) {
+    return isPastDate(user.expiresAt) ? 'expired' : 'active'
+  }
+  return 'none'
+}
+
+async function copyActivationCode(code = '') {
+  const text = String(code || '').trim()
+  if (!text) {
+    ElMessage.warning('暂无激活码可复制')
+    return
+  }
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      const input = document.createElement('textarea')
+      input.value = text
+      input.setAttribute('readonly', '')
+      input.style.position = 'fixed'
+      input.style.left = '-9999px'
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand('copy')
+      document.body.removeChild(input)
+    }
+    ElMessage.success('激活码已复制')
+  } catch (err) {
+    ElMessage.error('复制失败，请手动复制')
+  }
 }
 
 function versionLabelForEditor(index) {
@@ -2628,6 +2683,21 @@ function defaultUserEditForm() {
 
 .user-filter {
   margin-bottom: 12px;
+}
+
+.activation-code-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.activation-code-text {
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-block {
