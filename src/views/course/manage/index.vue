@@ -201,13 +201,13 @@
           <el-table-column label="题干" min-width="300">
             <template #default="{ row }">
               <div class="question-preview-cell">
-                <span class="question-preview-text">{{ row.stem || (row.stemImageUrl ? '图片题干' : '-') }}</span>
+                <span class="question-preview-text">{{ row.stem || (stemImageList(row).length ? '图片题干' : '-') }}</span>
                 <el-image
-                  v-if="row.stemImageUrl"
+                  v-if="stemImageList(row).length"
                   class="question-thumb"
-                  :src="row.stemImageUrl"
+                  :src="stemImageList(row)[0]"
                   fit="cover"
-                  :preview-src-list="[row.stemImageUrl]"
+                  :preview-src-list="stemImageList(row)"
                   preview-teleported
                 />
               </div>
@@ -277,7 +277,7 @@
                 </el-form-item>
                 <el-form-item label="课程">
                   <el-select v-model="orderForm.courseId" filterable placeholder="选择要开通的课程">
-                    <el-option v-for="course in courseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
+                    <el-option v-for="course in fullCourseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
                   </el-select>
                 </el-form-item>
                 <el-form-item label="卡类型">
@@ -316,8 +316,8 @@
                 </el-form-item>
                 <el-form-item label="激活码"><el-input v-model="codeActivateForm.code" placeholder="输入激活码" /></el-form-item>
                 <el-form-item label="课程">
-                  <el-select v-model="codeActivateForm.courseId" filterable clearable placeholder="可选，默认按激活码课程">
-                    <el-option v-for="course in courseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
+                  <el-select v-model="codeActivateForm.courseId" filterable placeholder="必选，且只能选择正式课">
+                    <el-option v-for="course in fullCourseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
                   </el-select>
                 </el-form-item>
                 <el-form-item label="学生名"><el-input v-model="codeActivateForm.studentName" placeholder="必填" /></el-form-item>
@@ -433,6 +433,7 @@
                 <div v-if="!row.activatedCourses || !row.activatedCourses.length" class="muted-text">暂无开通课程</div>
                 <div v-for="course in row.activatedCourses || []" :key="`${row.id}-${course.courseId || course.id}`" class="course-expand-item">
                   <strong>{{ course.courseTitle || course.title || course.courseName || course.courseId }}</strong>
+                  <span>激活码：{{ course.cardCode || '-' }}</span>
                   <span>到期：{{ course.expiresAt || course.expiry || '-' }}</span>
                   <span>进度：{{ course.progress || '-' }}</span>
                 </div>
@@ -459,7 +460,11 @@
           </el-table-column>
           <el-table-column prop="openCourseNames" label="开通课程" min-width="180" show-overflow-tooltip />
           <el-table-column prop="openedAt" label="开通时间" width="170" show-overflow-tooltip />
-          <el-table-column prop="openedCardCode" label="开通激活码" width="150" show-overflow-tooltip />
+          <el-table-column label="开通激活码" width="170" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ cardCodeSummary(row) }}
+            </template>
+          </el-table-column>
           <el-table-column prop="expiresAt" label="课程到期" width="150" show-overflow-tooltip />
           <el-table-column prop="gender" label="性别" width="90" />
           <el-table-column prop="grade" label="年级" width="110" show-overflow-tooltip />
@@ -521,8 +526,8 @@
           <el-form :model="activationForm" inline>
             <el-form-item label="激活码"><el-input v-model="activationForm.code" :disabled="!!activationForm.id" placeholder="不填自动生成9位小写字母数字" style="width: 220px" /></el-form-item>
             <el-form-item label="课程">
-              <el-select v-model="activationForm.courseId" filterable clearable placeholder="可选，激活时也可选择" style="width: 220px">
-                <el-option v-for="course in courseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
+              <el-select v-model="activationForm.courseId" filterable placeholder="必选正式课" style="width: 220px">
+                <el-option v-for="course in fullCourseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
               </el-select>
             </el-form-item>
             <el-form-item label="类型">
@@ -901,8 +906,8 @@
       <el-form :model="docForm" label-width="90px">
         <el-form-item label="资料标题"><el-input v-model="docForm.title" /></el-form-item>
         <el-form-item label="所属科目">
-          <el-select v-model="docForm.courseId" filterable placeholder="选择资料所属科目" style="width: 100%">
-            <el-option v-for="course in courseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
+          <el-select v-model="docForm.courseId" filterable placeholder="选择正式课程" style="width: 100%">
+            <el-option v-for="course in fullCourseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="资料分类">
@@ -941,7 +946,10 @@
             </div>
             <div class="question-media-pane upload-pane">
               <div class="pane-label">题干图片</div>
-              <image-upload v-model="questionForm.stemImageUrl" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+              <image-upload v-model="questionForm.stemImageUrl" :limit="10" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+              <div class="field-hint">可上传多张，拖动图片可排序。</div>
+              <div class="pane-label file-pane-label">题干文档</div>
+              <file-upload v-model="questionForm.stemFileUrl" :limit="1" :file-size="500" :file-type="['pdf', 'doc', 'docx']" />
             </div>
           </div>
         </el-form-item>
@@ -954,12 +962,15 @@
               </div>
               <div class="question-media-pane upload-pane">
                 <div class="pane-label">选项图片</div>
-                <image-upload v-model="questionForm.optionImageUrlsText" :limit="10" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
-                <div class="field-hint">按上传顺序对应 A、B、C、D；无图片的选项可不上传。</div>
+                <image-upload v-model="questionForm.optionImageUrlsText" :limit="20" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+                <div class="field-hint">按上传顺序对应 A、B、C...；支持 7 选五等多选项，拖动图片可排序。</div>
               </div>
             </div>
           </el-form-item>
-          <el-form-item label="答案序号"><el-input-number v-model="questionForm.answer" :min="0" :max="9" /></el-form-item>
+          <el-form-item label="答案序号">
+            <el-input-number v-model="questionForm.answer" :min="1" />
+            <div class="field-hint">从 1 开始填写：1=A，2=B，4=D，7=G。</div>
+          </el-form-item>
         </template>
         <el-form-item v-else label="参考答案">
           <div class="reference-answer-editor">
@@ -974,7 +985,10 @@
             </div>
             <div class="reference-answer-pane upload-pane">
               <div class="pane-label">拍照上传（直接显示图片）</div>
-              <image-upload v-model="questionForm.answerImageUrl" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+              <image-upload v-model="questionForm.answerImageUrl" :limit="10" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+              <div class="field-hint">可上传多张，拖动图片可排序。</div>
+              <div class="pane-label file-pane-label">答案文档</div>
+              <file-upload v-model="questionForm.answerFileUrl" :limit="1" :file-size="500" :file-type="['pdf', 'doc', 'docx']" />
             </div>
           </div>
         </el-form-item>
@@ -1013,7 +1027,11 @@
         </div>
         <el-form-item label="解析"><el-input v-model="questionForm.analysis" type="textarea" :rows="3" /></el-form-item>
         <el-form-item label="图片解析">
-          <image-upload v-model="questionForm.analysisImageUrl" :limit="1" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+          <image-upload v-model="questionForm.analysisImageUrl" :limit="10" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
+          <div class="field-hint">可上传多张，拖动图片可排序。</div>
+        </el-form-item>
+        <el-form-item label="解析文档">
+          <file-upload v-model="questionForm.analysisFileUrl" :limit="1" :file-size="500" :file-type="['pdf', 'doc', 'docx']" />
         </el-form-item>
         <el-form-item label="视频解析">
           <file-upload v-model="questionForm.videoAnalysisUrl" :limit="1" :file-size="500" :file-type="['mp4', 'mov', 'm4v', 'webm']" />
@@ -1044,15 +1062,15 @@
       <el-checkbox-group v-model="selectedQuestionIds" class="question-picker-list">
         <div v-for="question in filteredQuestionOptions" :key="question.id" class="question-option-row">
           <el-checkbox :label="question.id">
-            <span class="question-option-stem">{{ question.stem || (question.stemImageUrl ? '图片题干' : '未填写题干') }}</span>
+            <span class="question-option-stem">{{ question.stem || (stemImageList(question).length ? '图片题干' : '未填写题干') }}</span>
           </el-checkbox>
-          <div v-if="question.stemImageUrl || optionImageList(question).length" class="question-option-images">
+          <div v-if="stemImageList(question).length || optionImageList(question).length" class="question-option-images">
             <el-image
-              v-if="question.stemImageUrl"
+              v-if="stemImageList(question).length"
               class="question-picker-thumb"
-              :src="question.stemImageUrl"
+              :src="stemImageList(question)[0]"
               fit="cover"
-              :preview-src-list="[question.stemImageUrl]"
+              :preview-src-list="stemImageList(question)"
               preview-teleported
             />
             <el-image
@@ -1357,6 +1375,7 @@ const courseOptions = computed(() => (courseOptionList.value.length ? courseOpti
   ...course,
   optionLabel: `${cleanCourseName(course.courseName || course.title || course.id)}（${course.id}）`
 })))
+const fullCourseOptions = computed(() => courseOptions.value.filter(course => course.kind === 'full'))
 const questionStatChips = computed(() => {
   const list = [{ label: '总题目数', value: questionList.value.length }]
   questionTypeOptions.forEach(item => {
@@ -1645,6 +1664,14 @@ function userCourseStatus(user = {}) {
     return isPastDate(user.expiresAt) ? 'expired' : 'active'
   }
   return 'none'
+}
+
+function cardCodeSummary(row = {}) {
+  const codes = Array.isArray(row.openedCardCodes)
+    ? row.openedCardCodes.filter(Boolean)
+    : (row.openedCardCode ? [row.openedCardCode] : [])
+  if (!codes.length) return '-'
+  return codes.length > 1 ? `${codes[0]} 等 ${codes.length} 个` : codes[0]
 }
 
 async function copyActivationCode(code = '') {
@@ -2078,6 +2105,7 @@ function openQuestionDialog(row) {
   questionForm.optionsText = row && row.options ? row.options.join('\n') : ''
   questionForm.stemImageUrl = row ? (row.stemImageUrl || row.questionImageUrl || row.stemImage || '') : ''
   questionForm.optionImageUrlsText = row ? mediaListText(row.optionImageUrls || row.optionImages || row.optionImageUrl) : ''
+  questionForm.answer = row && questionForm.questionType === 'choice' ? Number(row.answer || 0) + 1 : (questionForm.answer || 1)
   questionForm.answerText = row ? (row.answerText || (questionForm.questionType === 'choice' ? '' : String(row.answer || ''))) : ''
   questionForm.bindConfirmed = false
   questionOpen.value = true
@@ -2095,6 +2123,7 @@ async function submitQuestion() {
   }
   const optionCount = Math.max(options.length, optionImageUrls.length)
   while (options.length < optionCount) options.push('')
+  const answerIndex = Number(questionForm.answer || 1) - 1
   if (!String(questionForm.stem || '').trim() && !stemImageUrl) {
     ElMessage.warning('请填写题干或上传题干图片')
     return
@@ -2103,16 +2132,17 @@ async function submitQuestion() {
     ElMessage.warning('选择题至少填写两个选项或上传两张选项图片')
     return
   }
-  if (questionType === 'choice' && Number(questionForm.answer) >= optionCount) {
-    ElMessage.warning('答案序号不能超出选项数量')
+  if (questionType === 'choice' && (answerIndex < 0 || answerIndex >= optionCount)) {
+    ElMessage.warning(`答案序号不能超出选项数量，当前可填 1-${optionCount}`)
     return
   }
-  if (questionType !== 'choice' && !String(questionForm.answerText || '').trim() && !String(questionForm.answerImageUrl || '').trim()) {
-    ElMessage.warning('请填写参考答案或上传参考答案图片')
+  if (questionType !== 'choice' && !String(questionForm.answerText || '').trim() && !String(questionForm.answerImageUrl || '').trim() && !String(questionForm.answerFileUrl || '').trim()) {
+    ElMessage.warning('请填写参考答案、上传参考答案图片或文档')
     return
   }
   if (questionForm.courseId && questionForm.chapterKey && questionForm.lessonKey) {
     applyQuestionBindLabels()
+    questionForm.bindConfirmed = true
   }
   const payload = {
     ...questionForm,
@@ -2120,7 +2150,7 @@ async function submitQuestion() {
     options,
     stemImageUrl,
     optionImageUrls,
-    answer: questionType === 'choice' ? Number(questionForm.answer || 0) : undefined,
+    answer: questionType === 'choice' ? answerIndex : undefined,
     answerText: questionType === 'choice' ? '' : String(questionForm.answerText || '').trim(),
     acceptableAnswers: questionType === 'fill'
       ? String(questionForm.answerText || '').split('\n').map(item => item.trim()).filter(Boolean)
@@ -2172,9 +2202,9 @@ async function submitOrder() {
 }
 
 async function submitCodeActivation() {
-  const required = ['userId', 'code', 'studentName', 'gender', 'recentExamScore', 'grade', 'schoolName', 'region']
+  const required = ['userId', 'code', 'courseId', 'studentName', 'gender', 'recentExamScore', 'grade', 'schoolName', 'region']
   if (hasMissingFields(codeActivateForm, required)) {
-    ElMessage.warning('请填写用户、激活码、学生名、性别、分数、年级、学校和地区')
+    ElMessage.warning('请填写用户、激活码、课程、学生名、性别、分数、年级、学校和地区')
     return
   }
   await activateCourseByCode({ ...codeActivateForm })
@@ -2191,6 +2221,10 @@ async function handleCloseOrder(row) {
 }
 
 async function submitActivationCode() {
+  if (!activationForm.courseId) {
+    ElMessage.warning('请选择正式课程')
+    return
+  }
   if (!activationForm.cardType) {
     ElMessage.warning('请选择卡类型')
     return
@@ -2397,6 +2431,10 @@ function optionImageList(row = {}) {
   return mediaList(row.optionImageUrls || row.optionImages || row.optionImageUrl)
 }
 
+function stemImageList(row = {}) {
+  return mediaList(row.stemImageUrl || row.questionImageUrl || row.stemImage)
+}
+
 function questionContentSummary(row = {}) {
   const type = normalizeQuestionType(row.questionType)
   if (type === 'choice') {
@@ -2410,8 +2448,12 @@ function questionContentSummary(row = {}) {
 
 function questionAnswerLabel(row = {}) {
   const type = normalizeQuestionType(row.questionType)
-  if (type === 'choice') return `序号 ${row.answer ?? 0}`
-  return row.answerText || row.answer || (row.answerImageUrl ? '图片参考答案' : '-')
+  if (type === 'choice') {
+    const index = Number(row.answer || 0)
+    if (!Number.isFinite(index) || index < 0) return '-'
+    return `第 ${index + 1} 项（${String.fromCharCode(65 + index)}）`
+  }
+  return row.answerText || row.answer || (row.answerImageUrl ? '图片参考答案' : '') || (row.answerFileUrl ? '文档参考答案' : '-')
 }
 
 function questionBoundLabel(row = {}) {
@@ -2580,6 +2622,7 @@ function defaultQuestionForm() {
     questionType: 'choice',
     stem: '',
     stemImageUrl: '',
+    stemFileUrl: '',
     optionsText: '',
     optionImageUrls: [],
     optionImageUrlsText: '',
@@ -2598,7 +2641,9 @@ function defaultQuestionForm() {
     lessonKey: '',
     bindConfirmed: false,
     answerImageUrl: '',
+    answerFileUrl: '',
     analysisImageUrl: '',
+    analysisFileUrl: '',
     videoAnalysisUrl: ''
   }
 }
@@ -3111,6 +3156,10 @@ function defaultUserEditForm() {
   color: #6b7280;
   font-size: 13px;
   font-weight: 700;
+}
+
+.file-pane-label {
+  margin-top: 14px;
 }
 
 .upload-pane {

@@ -173,7 +173,8 @@ function handleExceed() {
 // 上传成功回调
 function handleUploadSuccess(res, file) {
   if (res.code === 200) {
-    uploadList.value.push({ name: res.fileName, url: res.fileName })
+    const fileName = res.fileName || res.url || res.data?.url || ""
+    uploadList.value.push({ name: fileName, url: normalizeDisplayUrl(fileName) })
     uploadedSuccessfully()
   } else {
     number.value--
@@ -182,6 +183,13 @@ function handleUploadSuccess(res, file) {
     proxy.$refs.imageUpload.handleRemove(file)
     uploadedSuccessfully()
   }
+}
+
+function normalizeDisplayUrl(url = "") {
+  if (!url || isExternal(url) || url.indexOf(baseUrl) === 0 || url.indexOf("blob:") === 0) {
+    return url
+  }
+  return baseUrl + url
 }
 
 // 删除图片
