@@ -463,11 +463,18 @@
             <template #default="{ row }">
               <div class="user-course-expand">
                 <div v-if="!row.activatedCourses || !row.activatedCourses.length" class="muted-text">暂无开通课程</div>
-                <div v-for="course in row.activatedCourses || []" :key="`${row.id}-${course.courseId || course.id}`" class="course-expand-item">
-                  <strong>{{ course.courseTitle || course.title || course.courseName || course.courseId }}</strong>
-                  <span>激活码：{{ course.cardCode || '-' }}</span>
-                  <span>到期：{{ course.expiresAt || course.expiry || '-' }}</span>
-                  <span>进度：{{ course.progress || '-' }}</span>
+                <div class="course-expand-grid" v-else>
+                  <div v-for="course in row.activatedCourses || []" :key="`${row.id}-${course.courseId || course.id}-${course.cardCode || ''}`" class="course-expand-card">
+                    <div class="course-expand-title">{{ course.courseTitle || course.title || course.courseName || course.courseId }}</div>
+                    <div class="course-expand-meta">
+                      <span>激活码：{{ course.cardCode || '-' }}</span>
+                      <span>激活时间：{{ course.activatedAt || course.openedAt || '-' }}</span>
+                      <span>课程到期：{{ course.expiresAt || course.expiry || '-' }}</span>
+                      <span>科目分数：{{ course.recentExamScore || '-' }}</span>
+                      <span>学生：{{ course.studentName || row.studentName || row.name || '-' }}</span>
+                      <span>进度：{{ course.progress || '-' }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </template>
@@ -490,11 +497,24 @@
               <el-tag :type="(row.status || 'active') === 'active' ? 'success' : 'danger'">{{ (row.status || 'active') === 'active' ? '正常' : '禁用' }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="openCourseNames" label="开通课程" min-width="180" show-overflow-tooltip />
+          <el-table-column label="开通课程" min-width="220">
+            <template #default="{ row }">
+              <div v-if="row.activatedCourses && row.activatedCourses.length" class="course-summary-list">
+                <div v-for="course in row.activatedCourses" :key="`${row.id}-${course.courseId || course.id}-${course.cardCode || ''}`" class="course-summary-item">
+                  <span>{{ course.courseTitle || course.title || course.courseName || course.courseId }}</span>
+                  <small>{{ course.cardCode || '无激活码' }} · {{ course.activatedAt || course.openedAt || '-' }}</small>
+                </div>
+              </div>
+              <span v-else class="muted-text">暂无开通课程</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="openedAt" label="开通时间" width="170" show-overflow-tooltip />
           <el-table-column label="开通激活码" width="170" show-overflow-tooltip>
             <template #default="{ row }">
-              {{ cardCodeSummary(row) }}
+              <div class="activation-code-cell">
+                <span class="activation-code-text">{{ cardCodeSummary(row) }}</span>
+                <el-button v-if="row.openedCardCodes && row.openedCardCodes.length" link type="primary" @click="copyActivationCode(row.openedCardCodes.join('\n'))">复制</el-button>
+              </div>
             </template>
           </el-table-column>
           <el-table-column prop="expiresAt" label="课程到期" width="150" show-overflow-tooltip />
@@ -668,16 +688,39 @@
         <el-card v-if="selectedUserStats && selectedUserStats.type === 'agency'" shadow="never" class="admin-block user-stats-panel">
           <template #header>{{ selectedUserStatsTitle }}</template>
           <div class="compact-stat-grid">
-            <div class="agency-card" v-for="item in selectedUserStatCards" :key="item.label">
+            <div
+              class="agency-card"
+              :class="{ clickable: agencyStatCardClickable(item), active: selectedAgencyDetailStatus === item.status }"
+              v-for="item in selectedUserStatCards"
+              :key="item.label"
+              @click="selectAgencyStatCard(item)"
+            >
               <span>{{ item.label }}</span>
               <strong>{{ item.value }}</strong>
             </div>
           </div>
-          <el-table :data="selectedUserStats.students || []" border>
-            <el-table-column prop="studentName" label="绑定学生" />
-            <el-table-column prop="subject" label="科目" />
-            <el-table-column prop="region" label="地区" />
+          <div class="agency-detail-toolbar">
+            <span>{{ selectedAgencyDetailTitle }}</span>
+            <el-button type="primary" link @click="copyVisibleAgencyCodes">复制当前激活码</el-button>
+          </div>
+          <el-table :data="selectedAgencyCodeRows" border>
+            <el-table-column label="激活码" width="190">
+              <template #default="{ row }">
+                <div class="activation-code-cell">
+                  <span class="activation-code-text">{{ row.code || '-' }}</span>
+                  <el-button v-if="row.code" link type="primary" @click="copyActivationCode(row.code)">复制</el-button>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="courseTitle" label="激活科目" min-width="160" show-overflow-tooltip />
+            <el-table-column prop="cardTypeText" label="类型" width="130" />
+            <el-table-column prop="studentName" label="激活人" width="120" />
+            <el-table-column prop="usedByName" label="账号用户" width="120" />
+            <el-table-column prop="recentExamScore" label="分数" width="90" />
+            <el-table-column prop="region" label="地区" width="120" show-overflow-tooltip />
+            <el-table-column prop="schoolName" label="学校" min-width="140" show-overflow-tooltip />
             <el-table-column prop="activatedAt" label="激活日期" width="180" />
+            <el-table-column prop="expiresAt" label="到期时间" width="180" />
           </el-table>
         </el-card>
       </el-tab-pane>
@@ -1298,6 +1341,7 @@ const orderList = ref([])
 const activationList = ref([])
 const agencyList = ref([])
 const agencyStats = ref(null)
+const selectedAgencyDetailStatus = ref('all')
 const subAccountList = ref([])
 const subAccountPermissionOptions = ref([])
 const studyData = reactive({
@@ -1528,9 +1572,9 @@ const selectedUserStatCards = computed(() => {
   const stats = selectedUserStats.value || {}
   if (stats.type === 'agency') {
     return [
-      { label: '激活码总数', value: stats.totalCodes || 0 },
-      { label: '未使用激活码', value: stats.unusedCount || 0 },
-      { label: '已使用激活码', value: stats.activatedCount || 0 },
+      { label: '激活码总数', value: stats.totalCodes || 0, status: 'all' },
+      { label: '未使用激活码', value: stats.unusedCount || 0, status: 'unused' },
+      { label: '已使用激活码', value: stats.activatedCount || 0, status: 'used' },
       { label: '开课人数', value: stats.openPeopleCount || stats.userCount || 0 },
       { label: '课程激活数量', value: stats.activatedCourseCount || 0 },
       { label: '推荐人数', value: stats.referralCount || 0 },
@@ -1545,6 +1589,26 @@ const selectedUserStatCards = computed(() => {
     { label: '错题数量', value: stats.wrongCount || 0 },
     { label: '学习进度', value: stats.progressText || '暂无' }
   ]
+})
+const selectedAgencyDetailTitle = computed(() => {
+  if (selectedAgencyDetailStatus.value === 'used') return '已使用激活码明细'
+  if (selectedAgencyDetailStatus.value === 'unused') return '未使用激活码明细'
+  return '激活码总数明细'
+})
+const selectedAgencyCodeRows = computed(() => {
+  const stats = selectedUserStats.value || {}
+  const rows = Array.isArray(stats.codes) ? stats.codes : []
+  const status = selectedAgencyDetailStatus.value
+  return rows.filter(item => {
+    if (status === 'used') return item.status === 'used'
+    if (status === 'unused') return item.status !== 'used'
+    return true
+  }).map(item => ({
+    ...item,
+    usedByName: item.usedByName || item.studentName || '',
+    courseTitle: item.courseTitle || item.subject || item.courseId || '-',
+    cardTypeText: item.cardTypeText || item.durationText || '-'
+  }))
 })
 const isLessonEditorMode = computed(() => ['review', 'tactics', 'knowledge'].includes(contentMode.value))
 const activeVersionIndex = computed(() => contentMode.value === 'tactics' ? 1 : (contentMode.value === 'knowledge' ? 2 : 0))
@@ -1938,6 +2002,20 @@ async function copyActivationCode(code = '') {
   } catch (err) {
     ElMessage.error('复制失败，请手动复制')
   }
+}
+
+function agencyStatCardClickable(item = {}) {
+  return ['all', 'unused', 'used'].includes(item.status)
+}
+
+function selectAgencyStatCard(item = {}) {
+  if (!agencyStatCardClickable(item)) return
+  selectedAgencyDetailStatus.value = item.status
+}
+
+async function copyVisibleAgencyCodes() {
+  const codes = selectedAgencyCodeRows.value.map(item => item.code).filter(Boolean)
+  await copyActivationCode(codes.join('\n'))
 }
 
 function versionLabelForEditor(index) {
@@ -2537,6 +2615,7 @@ async function setAgencyAdmin(row) {
 async function showAgencyStats(row) {
   const res = await getAgencySummary(row.id)
   agencyStats.value = res.data || null
+  selectedAgencyDetailStatus.value = 'all'
   selectedUserStats.value = { type: 'agency', name: row.name || row.organizationName || row.id, ...(res.data || {}) }
 }
 
@@ -3139,18 +3218,59 @@ function defaultSubAccountForm() {
   background: #fbfdff;
 }
 
-.course-expand-item {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  min-height: 32px;
+.course-expand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 10px;
+}
+
+.course-expand-card {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #e6edf5;
+  background: #fff;
+}
+
+.course-expand-title {
+  margin-bottom: 8px;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.course-expand-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 14px;
   color: #4b5563;
   font-size: 13px;
 }
 
-.course-expand-item strong {
-  min-width: 180px;
+.course-summary-list {
+  display: grid;
+  gap: 6px;
+}
+
+.course-summary-item {
+  min-width: 0;
+}
+
+.course-summary-item span,
+.course-summary-item small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-summary-item span {
   color: #1f2937;
+  font-weight: 600;
+}
+
+.course-summary-item small {
+  margin-top: 2px;
+  color: #8a94a6;
+  font-size: 12px;
 }
 
 .agency-cards {
@@ -3176,6 +3296,25 @@ function defaultSubAccountForm() {
   margin-top: 8px;
   color: #1f2937;
   font-size: 22px;
+}
+
+.agency-card.clickable {
+  cursor: pointer;
+}
+
+.agency-card.clickable.active {
+  border-color: #409eff;
+  background: #f0f7ff;
+}
+
+.agency-detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 10px;
+  color: #344054;
+  font-weight: 700;
 }
 
 .rating-board {
