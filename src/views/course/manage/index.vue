@@ -11,8 +11,40 @@
       </div>
     </div>
 
-    <el-tabs v-model="activeTab" class="course-tabs">
-      <el-tab-pane label="前端配置" name="frontend">
+    <el-empty v-if="!visiblePanelNames.length" description="暂无授权板块，请联系总后台账号开通权限" />
+    <el-tabs v-else v-model="activeTab" class="course-tabs">
+      <el-tab-pane v-if="canPanel('subAccounts')" label="后台小号" name="subAccounts">
+        <el-card shadow="never" class="admin-block">
+          <template #header>
+            <div class="block-head">
+              <span>后台小号管理</span>
+              <el-button type="primary" icon="Plus" @click="openSubAccountDialog()">开通小号</el-button>
+            </div>
+          </template>
+          <el-table :data="subAccountList" border>
+            <el-table-column prop="userName" label="登录账号" width="150" />
+            <el-table-column prop="nickName" label="账号名称" width="150" />
+            <el-table-column prop="phonenumber" label="手机号" width="130" />
+            <el-table-column label="状态" width="90">
+              <template #default="{ row }">
+                <el-tag :type="row.status === '0' ? 'success' : 'info'">{{ row.status === '0' ? '正常' : '停用' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="授权板块" min-width="280" show-overflow-tooltip>
+              <template #default="{ row }">{{ subAccountPermissionText(row.permissionKeys) }}</template>
+            </el-table-column>
+            <el-table-column prop="createTime" label="创建时间" width="180" />
+            <el-table-column label="操作" width="160" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" icon="Edit" @click="openSubAccountDialog(row)">编辑</el-button>
+                <el-button link type="danger" icon="Delete" @click="removeSubAccount(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
+
+      <el-tab-pane v-if="canPanel('frontend')" label="前端配置" name="frontend">
         <el-card shadow="never" class="admin-block">
           <template #header>
             <div class="block-head">
@@ -105,7 +137,7 @@
         </div>
       </el-tab-pane>
 
-      <el-tab-pane label="课程管理" name="courses">
+      <el-tab-pane v-if="canPanel('courses')" label="课程管理" name="courses">
         <el-form :model="courseQuery" inline>
           <el-form-item label="阶段">
             <el-select v-model="courseQuery.stage" clearable placeholder="全部阶段" style="width: 140px">
@@ -157,7 +189,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="资料管理" name="docs">
+      <el-tab-pane v-if="canPanel('docs')" label="资料管理" name="docs">
         <el-row class="toolbar-row">
           <el-button type="success" icon="Plus" @click="openDocDialog()">新增资料</el-button>
         </el-row>
@@ -187,7 +219,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="题库管理" name="questions">
+      <el-tab-pane v-if="canPanel('questions')" label="题库管理" name="questions">
         <el-row class="toolbar-row">
           <el-button type="success" icon="Plus" @click="openQuestionDialog()">新增题目</el-button>
         </el-row>
@@ -265,7 +297,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="授权开通" name="orders">
+      <el-tab-pane v-if="canPanel('orders')" label="授权开通" name="orders">
         <el-row :gutter="16">
           <el-col :span="12">
             <el-card shadow="never" class="admin-block">
@@ -401,7 +433,7 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="用户管理" name="users">
+      <el-tab-pane v-if="canPanel('users')" label="用户管理" name="users">
         <el-form :model="userQuery" inline class="user-filter">
           <el-form-item label="关键词">
             <el-input v-model="userQuery.keyword" clearable placeholder="姓名 / 手机号 / ID" style="width: 220px" />
@@ -511,7 +543,7 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="激活码管理" name="codes">
+      <el-tab-pane v-if="canPanel('codes')" label="激活码管理" name="codes">
         <el-row :gutter="12" class="agency-cards">
           <el-col :span="4" v-for="item in activationSummaryCards" :key="item.label">
             <div class="agency-card">
@@ -609,7 +641,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="校区管理" name="agencies">
+      <el-tab-pane v-if="canPanel('agencies')" label="校区管理" name="agencies">
         <el-table :data="agencyList" border>
           <el-table-column label="校区/机构" min-width="180">
             <template #default="{ row }">{{ row.agency?.organizationName || row.agency?.name || row.agency?.id }}</template>
@@ -650,7 +682,7 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="后台记录查看" name="study">
+      <el-tab-pane v-if="canPanel('study')" label="后台记录查看" name="study">
         <el-card shadow="never" class="admin-block">
           <template #header>后台所有操作记录</template>
           <el-table :data="adminOperationRecords" border height="280">
@@ -686,7 +718,7 @@
         </el-row>
       </el-tab-pane>
 
-      <el-tab-pane label="课程打分统计" name="ratings">
+      <el-tab-pane v-if="canPanel('ratings')" label="课程打分统计" name="ratings">
         <el-card shadow="never" class="admin-block rating-board">
           <template #header>
             <div class="rating-header">
@@ -753,13 +785,66 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="外语词汇系统" name="vocabulary">
+      <el-tab-pane v-if="canPanel('vocabulary')" label="外语词汇系统" name="vocabulary">
         <el-card shadow="never" class="admin-block">
           <template #header>外语词汇系统</template>
           <div class="empty-editor">预留模块，后续可接入词汇库、词汇练习与记忆统计。</div>
         </el-card>
       </el-tab-pane>
     </el-tabs>
+
+    <el-dialog v-model="subAccountOpen" :title="subAccountForm.userId ? '编辑后台小号' : '开通后台小号'" width="720px" append-to-body>
+      <el-form :model="subAccountForm" label-width="96px">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="登录账号">
+              <el-input v-model="subAccountForm.userName" :disabled="!!subAccountForm.userId" maxlength="30" placeholder="用于登录后台" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="账号名称">
+              <el-input v-model="subAccountForm.nickName" maxlength="30" placeholder="例如：课程运营" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="登录密码">
+              <el-input v-model="subAccountForm.password" type="password" show-password :placeholder="subAccountForm.userId ? '留空则不修改' : '请输入初始密码'" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="账号状态">
+              <el-switch v-model="subAccountForm.status" active-value="0" inactive-value="1" active-text="正常" inactive-text="停用" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="手机号">
+              <el-input v-model="subAccountForm.phonenumber" maxlength="11" placeholder="可选" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="邮箱">
+              <el-input v-model="subAccountForm.email" maxlength="50" placeholder="可选" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="授权板块">
+              <el-checkbox-group v-model="subAccountForm.permissionKeys" class="permission-checks">
+                <el-checkbox v-for="item in subAccountPermissionOptions" :key="item.key" :label="item.key" border>
+                  <div class="permission-check-content">
+                    <strong>{{ item.label }}</strong>
+                    <span>{{ item.description }}</span>
+                  </div>
+                </el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <template #footer>
+        <el-button @click="subAccountOpen = false">取消</el-button>
+        <el-button type="primary" :loading="subAccountSaving" @click="submitSubAccount">保存小号</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="courseOpen" :title="courseForm.id ? '编辑课程' : '新增课程'" width="1120px" class="course-edit-dialog" append-to-body>
       <el-form :model="courseForm" label-width="96px" class="course-edit-form">
@@ -1157,11 +1242,12 @@
 </template>
 
 <script setup name="CourseManage">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   addCourse,
   addOrder,
+  addSubAccount,
   activateCourseByCode,
   closeActivationCodeAuthorization,
   closeOrder,
@@ -1169,6 +1255,7 @@ import {
   deleteCourse,
   deleteDoc,
   deleteQuestion,
+  deleteSubAccount,
   getAgencySummary,
   getCourseDashboard,
   getFrontendSettings,
@@ -1181,17 +1268,22 @@ import {
   listDocs,
   listOrders,
   listQuestions,
+  listSubAccountPermissions,
+  listSubAccounts,
   listUsers,
   saveActivationCode,
   saveDoc,
   saveFrontendSettings,
   saveQuestion,
+  updateSubAccount,
   updateUserRole,
   updateCourse
 } from '@/api/course'
 import AgreementEditor from './components/AgreementEditor.vue'
+import useUserStore from '@/store/modules/user'
 
 const activeTab = ref('frontend')
+const userStore = useUserStore()
 const loading = ref(false)
 const dashboard = reactive({})
 const courseQuery = reactive({ stage: '', kind: '' })
@@ -1206,6 +1298,8 @@ const orderList = ref([])
 const activationList = ref([])
 const agencyList = ref([])
 const agencyStats = ref(null)
+const subAccountList = ref([])
+const subAccountPermissionOptions = ref([])
 const studyData = reactive({
   attempts: [],
   wrongQuestions: [],
@@ -1221,6 +1315,7 @@ const courseOpen = ref(false)
 const docOpen = ref(false)
 const questionOpen = ref(false)
 const userEditOpen = ref(false)
+const subAccountOpen = ref(false)
 const activationAssignOpen = ref(false)
 const editingCourseId = ref('')
 const courseForm = reactive(defaultCourseForm())
@@ -1237,6 +1332,8 @@ const codeActivateForm = reactive({ userId: '56596', code: '', courseId: '', stu
 const activationQuery = reactive({ keyword: '', status: '', owner: '' })
 const activationForm = reactive({ id: '', code: '', courseId: '', cardType: 'year', ownerUserId: '', status: 'available', remark: '' })
 const activationAssignForm = reactive({ id: '', code: '', ownerUserId: '' })
+const subAccountForm = reactive(defaultSubAccountForm())
+const subAccountSaving = ref(false)
 const contentMode = ref('review')
 const activeChapterIndex = ref(0)
 const questionPickerOpen = ref(false)
@@ -1275,7 +1372,23 @@ const userCourseStatusOptions = [
   { label: '未开通', value: 'none' }
 ]
 const questionSubjectStats = ['高考数学', '高考语文', '高考英语', '高考物理', '高考化学', '高考政治', '高考历史', '高考生物', '高考地理', '中考语文', '中考数学', '中考英语', '中考物理', '中考化学']
+const allPermission = '*:*:*'
+const panelPermissions = {
+  frontend: ['course:settings:view', 'course:settings:edit'],
+  courses: ['course:courses:list', 'course:courses:add', 'course:courses:edit', 'course:courses:remove'],
+  docs: ['course:docs:list', 'course:docs:add', 'course:docs:edit', 'course:docs:remove'],
+  questions: ['course:questions:list', 'course:questions:add', 'course:questions:edit', 'course:questions:remove'],
+  orders: ['course:orders:list', 'course:orders:add', 'course:orders:edit', 'course:orders:close', 'course:auth:list', 'course:auth:edit'],
+  users: ['course:users:list', 'course:users:edit'],
+  codes: ['course:codes:list', 'course:codes:add', 'course:codes:edit', 'course:codes:remove', 'course:codes:close'],
+  agencies: ['course:agencies:list', 'course:agencies:edit'],
+  study: ['course:study:list'],
+  ratings: ['course:ratings:list'],
+  vocabulary: ['course:vocabulary:view']
+}
+const panelOrder = ['subAccounts', 'frontend', 'courses', 'docs', 'questions', 'orders', 'users', 'codes', 'agencies', 'study', 'ratings', 'vocabulary']
 
+const visiblePanelNames = computed(() => panelOrder.filter(name => canPanel(name)))
 const summaryCards = computed(() => [
   { label: '课程数', value: dashboard.courseTotal || 0, sub: `试听课程${courseStats.value.trial || 0}，正式课程${courseStats.value.full || 0}` },
   { label: '用户数', value: dashboard.userTotal || 0, sub: `正式学员${userStats.value.formalStudents || 0}，试用学员${userStats.value.trialStudents || 0}` },
@@ -1388,6 +1501,13 @@ const questionStatChips = computed(() => {
   })
   return list
 })
+const subAccountPermissionMap = computed(() => {
+  const map = {}
+  subAccountPermissionOptions.value.forEach(item => {
+    map[item.key] = item.label
+  })
+  return map
+})
 const adminOperationRecords = computed(() => {
   return (studyData.operationLogs || []).map(log => ({
     type: log.type || '后台操作',
@@ -1484,21 +1604,37 @@ onMounted(() => {
   loadAll()
 })
 
+watch(visiblePanelNames, (names) => {
+  if (!names.includes(activeTab.value)) {
+    activeTab.value = names[0] || ''
+  }
+}, { immediate: true })
+
 async function loadAll() {
-  await Promise.all([
-    loadDashboard(),
-    loadCourseOptions(),
-    loadCourses(),
-    loadDocsData(),
-    loadQuestionsData(),
-    loadUsersData(),
-    loadActivationData(),
-    loadAgencyData(),
-    loadAuthData(),
-    loadOrdersData(),
-    loadStudyData(),
-    loadFrontendSettings()
-  ])
+  const tasks = []
+  if (visiblePanelNames.value.length) {
+    tasks.push(loadDashboard())
+  }
+  if (needsCourseData()) {
+    tasks.push(loadCourseOptions())
+  }
+  if (canPanel('courses') || canPanel('ratings')) {
+    tasks.push(loadCourses())
+  }
+  if (canPanel('docs')) tasks.push(loadDocsData())
+  if (canPanel('questions')) tasks.push(loadQuestionsData())
+  if (needsUsersData()) tasks.push(loadUsersData())
+  if (canPanel('codes')) tasks.push(loadActivationData())
+  if (canPanel('agencies')) tasks.push(loadAgencyData())
+  if (canPanel('orders')) {
+    tasks.push(loadAuthData(), loadOrdersData())
+  }
+  if (canPanel('study')) tasks.push(loadStudyData())
+  if (canPanel('frontend')) tasks.push(loadFrontendSettings())
+  if (canPanel('subAccounts')) {
+    tasks.push(loadSubAccountPermissions(), loadSubAccountsData())
+  }
+  await Promise.all(tasks)
 }
 
 async function loadDashboard() {
@@ -1566,6 +1702,41 @@ async function loadFrontendSettings() {
   Object.assign(frontendSettings, mergeFrontendSettings(res.data || {}))
 }
 
+async function loadSubAccountPermissions() {
+  const res = await listSubAccountPermissions()
+  subAccountPermissionOptions.value = res.data || []
+}
+
+async function loadSubAccountsData() {
+  const res = await listSubAccounts()
+  subAccountList.value = res.data || []
+}
+
+function canPanel(name) {
+  if (name === 'subAccounts') return isSuperAdmin()
+  return isSuperAdmin() || hasAnyPermi(panelPermissions[name] || [])
+}
+
+function isSuperAdmin() {
+  return userStore.roles.includes('admin') || userStore.permissions.includes(allPermission)
+}
+
+function hasAnyPermi(permissions = []) {
+  return permissions.some(permission => hasPermi(permission))
+}
+
+function hasPermi(permission = '') {
+  return userStore.permissions.includes(allPermission) || userStore.permissions.includes(permission)
+}
+
+function needsCourseData() {
+  return ['courses', 'docs', 'questions', 'orders', 'codes', 'agencies', 'ratings'].some(canPanel)
+}
+
+function needsUsersData() {
+  return ['users', 'orders', 'codes', 'agencies'].some(canPanel)
+}
+
 function defaultFrontendSettings() {
   return {
     homeBanners: [
@@ -1618,6 +1789,75 @@ function addHomeBanner() {
 
 function removeHomeBanner(index) {
   frontendSettings.homeBanners.splice(index, 1)
+}
+
+function openSubAccountDialog(row = null) {
+  Object.assign(subAccountForm, defaultSubAccountForm())
+  if (row) {
+    Object.assign(subAccountForm, {
+      userId: row.userId,
+      userName: row.userName,
+      nickName: row.nickName,
+      phonenumber: row.phonenumber || '',
+      email: row.email || '',
+      status: row.status || '0',
+      permissionKeys: [...(row.permissionKeys || [])]
+    })
+  }
+  subAccountOpen.value = true
+}
+
+async function submitSubAccount() {
+  if (!subAccountForm.userName.trim()) {
+    ElMessage.warning('请输入登录账号')
+    return
+  }
+  if (!subAccountForm.nickName.trim()) {
+    ElMessage.warning('请输入账号名称')
+    return
+  }
+  if (!subAccountForm.userId && !subAccountForm.password.trim()) {
+    ElMessage.warning('请输入初始密码')
+    return
+  }
+  if (!subAccountForm.permissionKeys.length) {
+    ElMessage.warning('请至少选择一个授权板块')
+    return
+  }
+  subAccountSaving.value = true
+  try {
+    const payload = {
+      userName: subAccountForm.userName.trim(),
+      nickName: subAccountForm.nickName.trim(),
+      password: subAccountForm.password.trim(),
+      phonenumber: subAccountForm.phonenumber.trim(),
+      email: subAccountForm.email.trim(),
+      status: subAccountForm.status,
+      permissionKeys: [...subAccountForm.permissionKeys]
+    }
+    if (subAccountForm.userId) {
+      await updateSubAccount(subAccountForm.userId, payload)
+    } else {
+      await addSubAccount(payload)
+    }
+    ElMessage.success('后台小号已保存')
+    subAccountOpen.value = false
+    await loadSubAccountsData()
+  } finally {
+    subAccountSaving.value = false
+  }
+}
+
+function removeSubAccount(row) {
+  ElMessageBox.confirm(`确认删除后台小号“${row.userName}”吗？`, '删除确认', { type: 'warning' }).then(async () => {
+    await deleteSubAccount(row.userId)
+    ElMessage.success('后台小号已删除')
+    await loadSubAccountsData()
+  }).catch(() => {})
+}
+
+function subAccountPermissionText(keys = []) {
+  return keys.map(key => subAccountPermissionMap.value[key] || key).join('、') || '未授权'
 }
 
 async function submitFrontendSettings() {
@@ -2666,6 +2906,19 @@ function defaultUserEditForm() {
     remark: ''
   }
 }
+
+function defaultSubAccountForm() {
+  return {
+    userId: '',
+    userName: '',
+    nickName: '',
+    password: '',
+    phonenumber: '',
+    email: '',
+    status: '0',
+    permissionKeys: []
+  }
+}
 </script>
 
 <style scoped>
@@ -2720,6 +2973,32 @@ function defaultUserEditForm() {
   border-radius: 8px;
   background: #fff;
   border: 1px solid #e7eaf0;
+}
+
+.permission-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.permission-checks :deep(.el-checkbox.is-bordered) {
+  height: auto;
+  margin-right: 0;
+  padding: 10px 12px;
+}
+
+.permission-check-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.permission-check-content span {
+  color: #8a94a6;
+  font-size: 12px;
 }
 
 .toolbar-row {

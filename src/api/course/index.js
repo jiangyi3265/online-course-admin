@@ -209,3 +209,40 @@ export function saveFrontendSettings(data) {
     data,
   })
 }
+
+export function listSubAccountPermissions() {
+  return request({
+    url: '/course/admin/sub-accounts/permissions',
+    method: 'get',
+  })
+}
+
+export function listSubAccounts() {
+  return request({
+    url: '/course/admin/sub-accounts',
+    method: 'get',
+  })
+}
+
+export function addSubAccount(data) {
+  return request({
+    url: '/course/admin/sub-accounts',
+    method: 'post',
+    data,
+  })
+}
+
+export function updateSubAccount(id, data) {
+  return request({
+    url: `/course/admin/sub-accounts/${id}`,
+    method: 'put',
+    data,
+  })
+}
+
+export function deleteSubAccount(id) {
+  return request({
+    url: `/course/admin/sub-accounts/${id}`,
+    method: 'delete',
+  })
+}

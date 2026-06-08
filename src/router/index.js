@@ -51,13 +51,14 @@ export const constantRoutes = [
     path: '/course',
     component: Layout,
     redirect: '/course/manage',
-    meta: { title: '网课管理', icon: 'education' },
+    hidden: true,
+    meta: { title: '课程后台', icon: 'education' },
     children: [
       {
         path: 'manage',
         component: () => import('@/views/course/manage/index'),
         name: 'CourseManage',
-        meta: { title: '网课管理', icon: 'education' }
+        meta: { title: '课程上传与用户', icon: 'education' }
       }
     ]
   },
