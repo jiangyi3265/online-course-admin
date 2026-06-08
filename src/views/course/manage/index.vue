@@ -233,7 +233,8 @@
           <el-table-column label="题干" min-width="300">
             <template #default="{ row }">
               <div class="question-preview-cell">
-                <span class="question-preview-text">{{ row.stem || (stemImageList(row).length ? '图片题干' : '-') }}</span>
+                <span class="question-preview-text math-rich-preview" v-html="mathHtml(row.stem || (stemImageList(row).length ? '图片题干' : '-'))"></span>
+                <audio v-if="stemAudioUrl(row)" class="question-audio-player" :src="stemAudioUrl(row)" controls preload="metadata"></audio>
                 <el-image
                   v-if="stemImageList(row).length"
                   class="question-thumb"
@@ -264,7 +265,7 @@
           <el-table-column label="题目内容" min-width="360">
             <template #default="{ row }">
               <div class="question-content-preview">
-                <span>{{ questionContentSummary(row) }}</span>
+                <span class="math-rich-preview" v-html="mathHtml(questionContentSummary(row))"></span>
                 <div v-if="optionImageList(row).length" class="question-thumb-row">
                   <el-image
                     v-for="(url, index) in optionImageList(row)"
@@ -281,7 +282,9 @@
             </template>
           </el-table-column>
           <el-table-column label="答案" width="150" show-overflow-tooltip>
-            <template #default="{ row }">{{ questionAnswerLabel(row) }}</template>
+            <template #default="{ row }">
+              <span class="math-rich-preview" v-html="mathHtml(questionAnswerLabel(row))"></span>
+            </template>
           </el-table-column>
           <el-table-column label="视频解析" width="100">
             <template #default="{ row }">
@@ -348,7 +351,7 @@
                 </el-form-item>
                 <el-form-item label="激活码"><el-input v-model="codeActivateForm.code" placeholder="输入激活码" /></el-form-item>
                 <el-form-item label="课程">
-                  <el-select v-model="codeActivateForm.courseId" filterable placeholder="必选，且只能选择正式课">
+                  <el-select v-model="codeActivateForm.courseId" filterable placeholder="选择正式课程">
                     <el-option v-for="course in fullCourseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
                   </el-select>
                 </el-form-item>
@@ -497,32 +500,29 @@
               <el-tag :type="(row.status || 'active') === 'active' ? 'success' : 'danger'">{{ (row.status || 'active') === 'active' ? '正常' : '禁用' }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="开通课程" min-width="220">
+          <el-table-column label="开通课程" min-width="420">
             <template #default="{ row }">
               <div v-if="row.activatedCourses && row.activatedCourses.length" class="course-summary-list">
                 <div v-for="course in row.activatedCourses" :key="`${row.id}-${course.courseId || course.id}-${course.cardCode || ''}`" class="course-summary-item">
-                  <span>{{ course.courseTitle || course.title || course.courseName || course.courseId }}</span>
-                  <small>{{ course.cardCode || '无激活码' }} · {{ course.activatedAt || course.openedAt || '-' }}</small>
+                  <div class="course-summary-title">{{ courseTitle(course) }}</div>
+                  <div class="course-summary-meta">
+                    <span>开通：{{ shortDateTime(course.activatedAt || course.openedAt) }}</span>
+                    <span>到期：{{ courseExpiryText(course) }}</span>
+                    <span>分数：{{ course.recentExamScore || '-' }}</span>
+                  </div>
+                  <div class="course-summary-code">
+                    <span>{{ course.cardCode || '无激活码' }}</span>
+                    <el-button v-if="course.cardCode" link type="primary" @click="copyActivationCode(course.cardCode)">复制</el-button>
+                  </div>
                 </div>
               </div>
               <span v-else class="muted-text">暂无开通课程</span>
             </template>
           </el-table-column>
-          <el-table-column prop="openedAt" label="开通时间" width="170" show-overflow-tooltip />
-          <el-table-column label="开通激活码" width="170" show-overflow-tooltip>
-            <template #default="{ row }">
-              <div class="activation-code-cell">
-                <span class="activation-code-text">{{ cardCodeSummary(row) }}</span>
-                <el-button v-if="row.openedCardCodes && row.openedCardCodes.length" link type="primary" @click="copyActivationCode(row.openedCardCodes.join('\n'))">复制</el-button>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column prop="expiresAt" label="课程到期" width="150" show-overflow-tooltip />
           <el-table-column prop="gender" label="性别" width="90" />
           <el-table-column prop="grade" label="年级" width="110" show-overflow-tooltip />
           <el-table-column prop="schoolName" label="学校名字" min-width="150" show-overflow-tooltip />
           <el-table-column prop="region" label="所在地区" min-width="140" show-overflow-tooltip />
-          <el-table-column prop="recentExamScore" label="科目分数" width="110" />
           <el-table-column prop="organizationName" label="机构/归属" min-width="150" show-overflow-tooltip />
           <el-table-column prop="activationQuota" label="激活名额" width="120">
             <template #default="{ row }">
@@ -578,7 +578,7 @@
           <el-form :model="activationForm" inline>
             <el-form-item label="激活码"><el-input v-model="activationForm.code" :disabled="!!activationForm.id" placeholder="不填自动生成9位小写字母数字" style="width: 220px" /></el-form-item>
             <el-form-item label="课程">
-              <el-select v-model="activationForm.courseId" filterable placeholder="必选正式课" style="width: 220px">
+              <el-select v-model="activationForm.courseId" filterable placeholder="选择课程" style="width: 220px">
                 <el-option v-for="course in fullCourseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
               </el-select>
             </el-form-item>
@@ -1068,16 +1068,20 @@
         </el-form-item>
         <el-form-item label="题干">
           <div class="question-media-editor">
-            <div class="question-media-pane">
-              <div class="pane-label">文字题干</div>
-              <el-input v-model="questionForm.stem" type="textarea" :rows="4" placeholder="输入题干文字" />
-            </div>
+              <div class="question-media-pane">
+                <div class="pane-label">文字题干</div>
+                <el-input v-model="questionForm.stem" type="textarea" :rows="4" placeholder="输入题干文字" />
+                <div v-if="questionForm.stem" class="math-preview" v-html="mathHtml(questionForm.stem)"></div>
+              </div>
             <div class="question-media-pane upload-pane">
               <div class="pane-label">题干图片</div>
               <image-upload v-model="questionForm.stemImageUrl" :limit="10" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
               <div class="field-hint">可上传多张，拖动图片可排序。</div>
               <div class="pane-label file-pane-label">题干文档</div>
               <file-upload v-model="questionForm.stemFileUrl" :limit="1" :file-size="500" :file-type="['pdf', 'doc', 'docx']" />
+              <div class="pane-label file-pane-label">题干音频</div>
+              <file-upload v-model="questionForm.stemAudioUrl" :limit="1" :file-size="50" :file-type="['mp3', 'm4a', 'wav', 'aac', 'ogg']" />
+              <audio v-if="questionForm.stemAudioUrl" class="question-audio-player" :src="mediaUrl(questionForm.stemAudioUrl)" controls preload="metadata"></audio>
             </div>
           </div>
         </el-form-item>
@@ -1087,6 +1091,7 @@
               <div class="question-media-pane">
                 <div class="pane-label">文字选项</div>
                 <el-input v-model="questionForm.optionsText" type="textarea" :rows="4" placeholder="每行一个选项；如只有图片，可留空并按顺序上传图片" />
+                <div v-if="questionForm.optionsText" class="math-preview" v-html="mathHtml(questionForm.optionsText)"></div>
               </div>
               <div class="question-media-pane upload-pane">
                 <div class="pane-label">选项图片</div>
@@ -1190,8 +1195,9 @@
       <el-checkbox-group v-model="selectedQuestionIds" class="question-picker-list">
         <div v-for="question in filteredQuestionOptions" :key="question.id" class="question-option-row">
           <el-checkbox :label="question.id">
-            <span class="question-option-stem">{{ question.stem || (stemImageList(question).length ? '图片题干' : '未填写题干') }}</span>
+            <span class="question-option-stem math-rich-preview" v-html="mathHtml(question.stem || (stemImageList(question).length ? '图片题干' : '未填写题干'))"></span>
           </el-checkbox>
+          <audio v-if="stemAudioUrl(question)" class="question-audio-player question-picker-audio" :src="stemAudioUrl(question)" controls preload="metadata"></audio>
           <div v-if="stemImageList(question).length || optionImageList(question).length" class="question-option-images">
             <el-image
               v-if="stemImageList(question).length"
@@ -1227,7 +1233,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="userEditOpen" title="修改用户信息" width="620px" append-to-body>
+    <el-dialog v-model="userEditOpen" title="修改用户信息" width="860px" class="user-edit-dialog" append-to-body>
       <el-form :model="userEditForm" label-width="100px">
         <el-form-item label="用户ID">
           <el-input v-model="userEditForm.id" disabled />
@@ -1249,15 +1255,32 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12"><el-form-item label="课程到期"><el-date-picker v-model="userEditForm.expiresAt" value-format="YYYY-MM-DD" type="date" placeholder="选择到期日期" style="width: 100%" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="性别"><el-select v-model="userEditForm.gender" clearable style="width: 100%"><el-option v-for="item in genderOptions" :key="item" :label="item" :value="item" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="年级"><el-input v-model="userEditForm.grade" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="科目分数"><el-input v-model="userEditForm.recentExamScore" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="学校"><el-input v-model="userEditForm.schoolName" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="地区"><el-input v-model="userEditForm.region" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="机构/校区"><el-input v-model="userEditForm.organizationName" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="激活名额"><el-input-number v-model="userEditForm.activationQuota" :min="0" controls-position="right" style="width: 100%" /></el-form-item></el-col>
         </el-row>
+        <div class="user-course-editor">
+          <div class="user-course-editor-head">
+            <div>
+              <strong>已开通课程</strong>
+              <span>多科目用户可分别调整每门课的到期时间。</span>
+            </div>
+          </div>
+          <div v-if="!userEditForm.activatedCourses.length" class="empty-editor">暂无已开通课程</div>
+          <div v-else class="user-course-editor-list">
+            <div v-for="course in userEditForm.activatedCourses" :key="`${course.courseId}-${course.cardCode || ''}`" class="user-course-editor-row">
+              <div class="user-course-editor-main">
+                <strong>{{ courseTitle(course) }}</strong>
+                <span>激活码：{{ course.cardCode || '-' }} · 开通：{{ shortDateTime(course.activatedAt || course.openedAt) }}</span>
+              </div>
+              <el-date-picker v-model="course.expiresAt" value-format="YYYY-MM-DD" type="date" placeholder="到期日期" style="width: 150px" />
+              <el-input v-model="course.recentExamScore" placeholder="科目分数" style="width: 120px" />
+            </div>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="userEditOpen = false">取消</el-button>
@@ -1324,7 +1347,9 @@ import {
 } from '@/api/course'
 import AgreementEditor from './components/AgreementEditor.vue'
 import useUserStore from '@/store/modules/user'
+import { renderMath } from '@/utils/mathRender'
 
+const mediaBaseUrl = import.meta.env.VITE_APP_BASE_API || ''
 const activeTab = ref('frontend')
 const userStore = useUserStore()
 const loading = ref(false)
@@ -1532,7 +1557,7 @@ const courseOptions = computed(() => (courseOptionList.value.length ? courseOpti
   ...course,
   optionLabel: `${cleanCourseName(course.courseName || course.title || course.id)}（${course.id}）`
 })))
-const fullCourseOptions = computed(() => courseOptions.value.filter(course => course.kind === 'full'))
+const fullCourseOptions = computed(() => courseOptions.value.filter(isFullCourseOption))
 const questionStatChips = computed(() => {
   const list = [{ label: '总题目数', value: questionList.value.length }]
   questionTypeOptions.forEach(item => {
@@ -1545,6 +1570,16 @@ const questionStatChips = computed(() => {
   })
   return list
 })
+
+function isFullCourseOption(course = {}) {
+  const kind = String(course.kind || '').trim()
+  if (kind) return kind === 'full'
+  if (course.isTry === true || course.openMode === 'trial') return false
+  const id = String(course.id || '').toLowerCase()
+  const text = `${course.courseName || ''} ${course.introduction || ''} ${course.title || ''}`.toLowerCase()
+  if (id.includes('trial') || text.includes('试听')) return false
+  return id.endsWith('-full') || text.length > 0
+}
 const subAccountPermissionMap = computed(() => {
   const map = {}
   subAccountPermissionOptions.value.forEach(item => {
@@ -2337,6 +2372,7 @@ async function saveUser(row) {
     region: row.region || '',
     recentExamScore: row.recentExamScore || '',
     expiresAt: row.expiresAt || '',
+    activatedCourses: editableActivatedCourses(row.activatedCourses),
     remark: row.remark || ''
   })
   ElMessage.success('用户信息已保存')
@@ -2349,7 +2385,8 @@ function openUserEdit(row) {
     status: row.status || 'active',
     role: row.role || 'student',
     activationQuota: Number(row.activationQuota || 0),
-    expiresAt: dateOnly(row.expiresAt)
+    expiresAt: dateOnly(row.expiresAt),
+    activatedCourses: editableActivatedCourses(row.activatedCourses)
   })
   userEditOpen.value = true
 }
@@ -2422,6 +2459,8 @@ function openQuestionDialog(row) {
   questionForm.questionType = normalizeQuestionType(questionForm.questionType || (row && row.options && row.options.length ? 'choice' : 'choice'))
   questionForm.optionsText = row && row.options ? row.options.join('\n') : ''
   questionForm.stemImageUrl = row ? (row.stemImageUrl || row.questionImageUrl || row.stemImage || '') : ''
+  questionForm.stemAudioUrl = row ? (row.stemAudioUrl || row.questionAudioUrl || row.audioUrl || row.stemAudio || '') : ''
+  questionForm.stemFileUrl = row ? (row.stemFileUrl || row.questionFileUrl || row.stemFile || '') : ''
   questionForm.optionImageUrlsText = row ? mediaListText(row.optionImageUrls || row.optionImages || row.optionImageUrl) : ''
   questionForm.answer = row && questionForm.questionType === 'choice' ? Number(row.answer || 0) + 1 : (questionForm.answer || 1)
   questionForm.answerText = row ? (row.answerText || (questionForm.questionType === 'choice' ? '' : String(row.answer || ''))) : ''
@@ -2432,6 +2471,7 @@ function openQuestionDialog(row) {
 async function submitQuestion() {
   const questionType = normalizeQuestionType(questionForm.questionType)
   const stemImageUrl = String(questionForm.stemImageUrl || '').trim()
+  const stemAudioUrl = String(questionForm.stemAudioUrl || '').trim()
   const optionImageUrls = questionType === 'choice' ? mediaList(questionForm.optionImageUrlsText) : []
   const options = questionType === 'choice'
     ? (questionForm.optionsText || '').split('\n').map(item => item.trim())
@@ -2442,8 +2482,8 @@ async function submitQuestion() {
   const optionCount = Math.max(options.length, optionImageUrls.length)
   while (options.length < optionCount) options.push('')
   const answerIndex = Number(questionForm.answer || 1) - 1
-  if (!String(questionForm.stem || '').trim() && !stemImageUrl) {
-    ElMessage.warning('请填写题干或上传题干图片')
+  if (!String(questionForm.stem || '').trim() && !stemImageUrl && !stemAudioUrl) {
+    ElMessage.warning('请填写题干、上传题干图片或题干音频')
     return
   }
   if (questionType === 'choice' && optionCount < 2) {
@@ -2467,6 +2507,7 @@ async function submitQuestion() {
     questionType,
     options,
     stemImageUrl,
+    stemAudioUrl,
     optionImageUrls,
     answer: questionType === 'choice' ? answerIndex : undefined,
     answerText: questionType === 'choice' ? '' : String(questionForm.answerText || '').trim(),
@@ -2540,7 +2581,7 @@ async function handleCloseOrder(row) {
 
 async function submitActivationCode() {
   if (!activationForm.courseId) {
-    ElMessage.warning('请选择正式课程')
+    ElMessage.warning('请选择要绑定的课程')
     return
   }
   if (!activationForm.cardType) {
@@ -2746,12 +2787,23 @@ function mediaListText(value) {
   return mediaList(value).join(',')
 }
 
+function mediaUrl(value = '') {
+  const url = String(value || '').trim()
+  if (!url) return ''
+  if (/^(https?:|data:|blob:)/i.test(url)) return url
+  return `${mediaBaseUrl}${url.startsWith('/') ? url : `/${url}`}`
+}
+
 function optionImageList(row = {}) {
   return mediaList(row.optionImageUrls || row.optionImages || row.optionImageUrl)
 }
 
 function stemImageList(row = {}) {
   return mediaList(row.stemImageUrl || row.questionImageUrl || row.stemImage)
+}
+
+function stemAudioUrl(row = {}) {
+  return mediaUrl(row.stemAudioUrl || row.questionAudioUrl || row.audioUrl || row.stemAudio)
 }
 
 function questionContentSummary(row = {}) {
@@ -2763,6 +2815,10 @@ function questionContentSummary(row = {}) {
     return [text, imageCount ? `${imageCount}张选项图` : ''].filter(Boolean).join('，') || '-'
   }
   return type === 'fill' ? '填空作答' : '主观作答'
+}
+
+function mathHtml(value = '', fallback = '') {
+  return renderMath(value, fallback)
 }
 
 function questionAnswerLabel(row = {}) {
@@ -2879,6 +2935,10 @@ function cleanCourseName(value = '') {
   return String(value).replace(/[《》]/g, '').replace(/20\d{2}/g, '').replace(/试听课/g, '').trim() || '未命名课程'
 }
 
+function courseTitle(course = {}) {
+  return course.courseTitle || course.title || course.courseName || course.courseId || course.id || '未命名课程'
+}
+
 function courseLabel(courseId = '') {
   const course = courseOptions.value.find(item => item.id === courseId)
   return course ? course.optionLabel : (courseId || '未选择')
@@ -2886,6 +2946,28 @@ function courseLabel(courseId = '') {
 
 function dateOnly(value = '') {
   return String(value || '').slice(0, 10)
+}
+
+function shortDateTime(value = '') {
+  const text = String(value || '').replace('T', ' ').trim()
+  return text ? text.slice(0, 16) : '-'
+}
+
+function courseExpiryText(course = {}) {
+  return dateOnly(course.expiresAt || course.expiry) || '-'
+}
+
+function editableActivatedCourses(courses = []) {
+  if (!Array.isArray(courses)) return []
+  return courses.map(course => ({
+    courseId: course.courseId || course.id || '',
+    courseTitle: courseTitle(course),
+    cardCode: course.cardCode || '',
+    activatedAt: course.activatedAt || '',
+    openedAt: course.openedAt || '',
+    expiresAt: dateOnly(course.expiresAt || course.expiry),
+    recentExamScore: course.recentExamScore || ''
+  }))
 }
 
 function docCategoryLabel(category = '') {
@@ -2941,6 +3023,7 @@ function defaultQuestionForm() {
     questionType: 'choice',
     stem: '',
     stemImageUrl: '',
+    stemAudioUrl: '',
     stemFileUrl: '',
     optionsText: '',
     optionImageUrls: [],
@@ -2982,6 +3065,7 @@ function defaultUserEditForm() {
     organizationName: '',
     activationQuota: 0,
     expiresAt: '',
+    activatedCourses: [],
     remark: ''
   }
 }
@@ -3183,6 +3267,21 @@ function defaultSubAccountForm() {
   word-break: break-word;
 }
 
+.math-rich-preview {
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.math-rich-preview :deep(.katex) {
+  font-size: 1em;
+}
+
+.math-rich-preview :deep(.katex-display) {
+  margin: 6px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 .question-thumb-row,
 .question-option-images {
   display: flex;
@@ -3247,28 +3346,119 @@ function defaultSubAccountForm() {
 
 .course-summary-list {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .course-summary-item {
   min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #edf1f7;
+  border-radius: 6px;
+  background: #fbfdff;
 }
 
-.course-summary-item span,
-.course-summary-item small {
+.course-summary-title,
+.course-summary-code span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-summary-title {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.course-summary-meta,
+.course-summary-code {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  color: #8a94a6;
+  font-size: 12px;
+}
+
+.course-summary-code {
+  flex-wrap: nowrap;
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.course-summary-code span {
+  min-width: 0;
+}
+
+.course-summary-code :deep(.el-button) {
+  padding: 0;
+}
+
+.user-course-editor {
+  margin-top: 6px;
+  padding: 14px;
+  border: 1px solid #e7eaf0;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.user-course-editor-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.user-course-editor-head strong,
+.user-course-editor-head span {
+  display: block;
+}
+
+.user-course-editor-head strong {
+  color: #1f2937;
+  font-size: 14px;
+}
+
+.user-course-editor-head span {
+  margin-top: 3px;
+  color: #8a94a6;
+  font-size: 12px;
+}
+
+.user-course-editor-list {
+  display: grid;
+  gap: 10px;
+}
+
+.user-course-editor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px 120px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #edf1f7;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.user-course-editor-main {
+  min-width: 0;
+}
+
+.user-course-editor-main strong,
+.user-course-editor-main span {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.course-summary-item span {
+.user-course-editor-main strong {
   color: #1f2937;
-  font-weight: 600;
 }
 
-.course-summary-item small {
-  margin-top: 2px;
+.user-course-editor-main span {
+  margin-top: 4px;
   color: #8a94a6;
   font-size: 12px;
 }
@@ -3565,6 +3755,27 @@ function defaultSubAccountForm() {
   min-width: 0;
 }
 
+.math-preview {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px dashed #d9e2ef;
+  border-radius: 6px;
+  background: #fbfdff;
+  color: #1f2937;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.math-preview :deep(.katex) {
+  font-size: 1em;
+}
+
+.math-preview :deep(.katex-display) {
+  margin: 6px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 .reference-answer-pane {
   min-width: 0;
 }
@@ -3578,6 +3789,18 @@ function defaultSubAccountForm() {
 
 .file-pane-label {
   margin-top: 14px;
+}
+
+.question-audio-player {
+  width: 100%;
+  max-width: 360px;
+  height: 34px;
+  margin-top: 8px;
+  display: block;
+}
+
+.question-picker-audio {
+  margin: 8px 0 0 28px;
 }
 
 .upload-pane {
