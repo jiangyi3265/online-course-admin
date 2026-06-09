@@ -229,8 +229,17 @@
             <strong>{{ item.value }}</strong>
           </div>
         </div>
-        <el-table :data="questionList" border>
-          <el-table-column label="题干" min-width="300">
+        <el-table
+          :data="questionList"
+          border
+          class="question-bank-table"
+          height="520"
+          row-key="id"
+          scrollbar-always-on
+          empty-text="暂无题库题目"
+        >
+          <el-table-column type="index" label="序号" width="64" fixed="left" align="center" :index="questionIndexMethod" />
+          <el-table-column label="题干" min-width="300" fixed="left">
             <template #default="{ row }">
               <div class="question-preview-cell">
                 <span class="question-preview-text math-rich-preview" v-html="mathHtml(row.stem || (stemImageList(row).length ? '图片题干' : '-'))"></span>
@@ -291,7 +300,7 @@
               <el-tag :type="row.videoAnalysisUrl ? 'success' : 'info'">{{ row.videoAnalysisUrl ? '已上传' : '暂无' }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="160">
+          <el-table-column label="操作" width="160" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" icon="Edit" @click="openQuestionDialog(row)">编辑</el-button>
               <el-button link type="danger" icon="Delete" @click="removeQuestion(row)">删除</el-button>
@@ -1997,6 +2006,9 @@ const computedLessonTotal = computed(() => editableLessonCount(ensureCourseVersi
 const questionSubjectOptions = computed(() => uniqueQuestionSubjects())
 const questionKnowledgeOptions = computed(() => uniqueQuestionField('knowledge'))
 const questionProvinceOptions = computed(() => uniqueQuestionField('province'))
+function questionIndexMethod(index) {
+  return index + 1
+}
 const filteredQuestionOptions = computed(() => {
   const keyword = questionPickerKeyword.value.trim().toLowerCase()
   const subject = String(questionPickerSubject.value || '').replace(/\s/g, '')
@@ -3970,6 +3982,28 @@ function defaultSubAccountForm() {
   margin-top: 6px;
   color: #1f2937;
   font-size: 18px;
+}
+
+.question-bank-table {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.question-bank-table :deep(.el-table__cell) {
+  vertical-align: top;
+}
+
+.question-bank-table :deep(.el-table__fixed),
+.question-bank-table :deep(.el-table__fixed-right) {
+  box-shadow: 0 0 10px rgba(15, 23, 42, 0.08);
+}
+
+.question-bank-table :deep(.el-scrollbar__bar.is-horizontal) {
+  height: 10px;
+}
+
+.question-bank-table :deep(.el-scrollbar__bar.is-vertical) {
+  width: 10px;
 }
 
 .question-preview-cell,
