@@ -1232,7 +1232,7 @@
               <div class="pane-label file-pane-label">题干文档</div>
               <file-upload v-model="questionForm.stemFileUrl" :limit="1" :file-size="500" :file-type="['pdf', 'doc', 'docx']" />
               <div class="pane-label file-pane-label">听力音频（题干下方播放）</div>
-              <file-upload v-model="questionForm.stemAudioUrl" :limit="1" :file-size="50" :file-type="['mp3', 'm4a', 'wav', 'aac', 'ogg']" />
+              <file-upload v-model="questionForm.stemAudioUrl" :limit="1" :file-size="50" :file-type="['mp3', 'm4a', 'wav', 'aac', 'ogg', 'mp4']" />
               <audio v-if="questionForm.stemAudioUrl" class="question-audio-player" :src="mediaUrl(questionForm.stemAudioUrl)" controls preload="metadata"></audio>
             </div>
           </div>
