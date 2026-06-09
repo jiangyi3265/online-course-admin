@@ -396,41 +396,88 @@
           <template #header>后台记录查看</template>
           <el-tabs v-model="orderRecordTab">
             <el-tab-pane label="开通记录" name="orders">
-              <el-table :data="orderList" border>
-                <el-table-column prop="id" label="记录号" min-width="160" />
-                <el-table-column prop="userName" label="用户" width="120" />
-                <el-table-column prop="courseTitle" label="课程" min-width="180" />
-                <el-table-column prop="cardCode" label="激活码" width="140" />
-                <el-table-column prop="studentName" label="学生名" width="110" />
-                <el-table-column prop="gender" label="性别" width="80" />
-                <el-table-column prop="recentExamScore" label="最近分数" width="100" />
-                <el-table-column prop="grade" label="年级" width="90" />
-                <el-table-column prop="schoolName" label="学校" min-width="140" show-overflow-tooltip />
-                <el-table-column prop="region" label="地区" min-width="140" />
-                <el-table-column prop="status" label="状态" width="100">
+              <el-table :data="pagedOrderList" border class="record-compact-table">
+                <el-table-column label="记录/用户" min-width="230">
                   <template #default="{ row }">
-                    <el-tag :type="row.status === 'activated' ? 'success' : 'info'">{{ row.status === 'activated' ? '已开通' : row.status }}</el-tag>
+                    <div class="stack-cell">
+                      <strong>{{ row.userName || '-' }}</strong>
+                      <span>{{ row.id || '-' }}</span>
+                      <span>来源：{{ row.source || '-' }}</span>
+                    </div>
                   </template>
                 </el-table-column>
-                <el-table-column prop="source" label="来源" width="120" />
-                <el-table-column prop="expiresAt" label="到期时间" width="170" />
-                <el-table-column prop="createdAt" label="时间" width="180" />
-                <el-table-column label="操作" fixed="right" width="110">
+                <el-table-column label="课程与激活码" min-width="260">
+                  <template #default="{ row }">
+                    <div class="stack-cell">
+                      <strong>{{ row.courseTitle || '-' }}</strong>
+                      <span class="mono-line">{{ row.cardCode || '无激活码' }}</span>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="学生资料" min-width="250">
+                  <template #default="{ row }">
+                    <div class="stack-cell">
+                      <span>{{ row.studentName || '-' }} / {{ row.gender || '-' }} / {{ row.grade || '-' }}</span>
+                      <span>分数：{{ row.recentExamScore || '-' }}</span>
+                      <span>{{ row.schoolName || '未填学校' }}，{{ row.region || '未填地区' }}</span>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="时间状态" width="220">
+                  <template #default="{ row }">
+                    <div class="stack-cell">
+                      <el-tag :type="orderStatusTagType(row)">{{ orderStatusText(row) }}</el-tag>
+                      <span>开通：{{ shortDateTime(row.createdAt) }}</span>
+                      <span>到期：{{ dateOnly(row.expiresAt) || '-' }}</span>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="120">
                   <template #default="{ row }">
                     <el-button link type="danger" :disabled="row.status !== 'activated'" @click="handleCloseOrder(row)">关闭权限</el-button>
                   </template>
                 </el-table-column>
               </el-table>
+              <pagination
+                v-show="orderList.length > orderPager.pageSize"
+                v-model:page="orderPager.pageNum"
+                v-model:limit="orderPager.pageSize"
+                :total="orderList.length"
+                :page-sizes="[8, 12, 20, 50]"
+                layout="total, sizes, prev, pager, next"
+                :auto-scroll="false"
+              />
             </el-tab-pane>
             <el-tab-pane label="操作记录" name="operations">
-              <el-table :data="adminOperationRecords" border>
-                <el-table-column prop="type" label="类型" width="120" />
-                <el-table-column prop="user" label="用户" width="150" />
-                <el-table-column prop="course" label="课程" min-width="180" show-overflow-tooltip />
-                <el-table-column prop="detail" label="操作内容" min-width="220" show-overflow-tooltip />
-                <el-table-column prop="status" label="状态" width="110" />
+              <el-table :data="pagedAdminOperationRecords" border class="record-compact-table">
+                <el-table-column label="操作信息" min-width="240">
+                  <template #default="{ row }">
+                    <div class="stack-cell">
+                      <strong>{{ row.type || '后台操作' }}</strong>
+                      <span>操作人：{{ row.user || '-' }}</span>
+                      <span>状态：{{ row.status || '-' }}</span>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="内容" min-width="360">
+                  <template #default="{ row }">
+                    <div class="stack-cell">
+                      <strong>{{ row.course || '-' }}</strong>
+                      <span>{{ row.detail || '-' }}</span>
+                    </div>
+                  </template>
+                </el-table-column>
                 <el-table-column prop="time" label="时间" width="180" />
               </el-table>
+              <pagination
+                v-show="adminOperationRecords.length > operationPager.pageSize"
+                v-model:page="operationPager.pageNum"
+                v-model:limit="operationPager.pageSize"
+                :total="adminOperationRecords.length"
+                :page-sizes="[8, 12, 20, 50]"
+                layout="total, sizes, prev, pager, next"
+                :auto-scroll="false"
+              />
             </el-tab-pane>
           </el-tabs>
         </el-card>
@@ -461,10 +508,19 @@
           </el-form-item>
         </el-form>
 
-        <el-table :data="filteredUserList" border>
+        <el-table :data="filteredUserList" border class="user-management-table" row-key="id">
           <el-table-column type="expand" width="48">
             <template #default="{ row }">
               <div class="user-course-expand">
+                <div class="user-expand-profile">
+                  <span>用户ID：{{ row.id || '-' }}</span>
+                  <span>手机：{{ row.phone || '-' }}</span>
+                  <span>学校：{{ row.schoolName || '-' }}</span>
+                  <span>地区：{{ row.region || '-' }}</span>
+                  <span>机构/归属：{{ row.organizationName || '-' }}</span>
+                  <span>注册：{{ shortDateTime(row.createdAt) }}</span>
+                  <span v-if="row.role === 'agency_admin'">激活名额：{{ row.activationQuota || 0 }}</span>
+                </div>
                 <div v-if="!row.activatedCourses || !row.activatedCourses.length" class="muted-text">暂无开通课程</div>
                 <div class="course-expand-grid" v-else>
                   <div v-for="course in row.activatedCourses || []" :key="`${row.id}-${course.courseId || course.id}-${course.cardCode || ''}`" class="course-expand-card">
@@ -482,28 +538,32 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="id" label="用户ID" width="130" show-overflow-tooltip />
-          <el-table-column prop="name" label="姓名" min-width="130" show-overflow-tooltip />
-          <el-table-column prop="phone" label="手机号" min-width="150" show-overflow-tooltip />
-          <el-table-column label="账号类型" width="120">
+          <el-table-column label="用户" min-width="230">
             <template #default="{ row }">
-              <el-tag :type="accountTypeTag(row)">{{ accountTypeText(row) }}</el-tag>
+              <div class="user-main-cell">
+                <strong>{{ row.name || row.studentName || '未填写姓名' }}</strong>
+                <span>ID：{{ row.id || '-' }}</span>
+                <span>手机：{{ row.phone || '-' }}</span>
+              </div>
             </template>
           </el-table-column>
-          <el-table-column prop="role" label="角色" width="150">
+          <el-table-column label="身份状态" width="180">
             <template #default="{ row }">
-              {{ userRoleLabel(row.role) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="status" label="状态" width="110">
-            <template #default="{ row }">
-              <el-tag :type="(row.status || 'active') === 'active' ? 'success' : 'danger'">{{ (row.status || 'active') === 'active' ? '正常' : '禁用' }}</el-tag>
+              <div class="user-identity-cell">
+                <div class="user-tag-row">
+                  <el-tag :type="accountTypeTag(row)">{{ accountTypeText(row) }}</el-tag>
+                  <el-tag :type="(row.status || 'active') === 'active' ? 'success' : 'danger'">{{ (row.status || 'active') === 'active' ? '正常' : '禁用' }}</el-tag>
+                </div>
+                <span>{{ userRoleLabel(row.role) }}</span>
+                <span v-if="row.role === 'agency_admin'">名额：{{ row.activationQuota || 0 }}</span>
+                <span v-else-if="row.organizationName">{{ row.organizationName }}</span>
+              </div>
             </template>
           </el-table-column>
           <el-table-column label="开通课程" min-width="420">
             <template #default="{ row }">
               <div v-if="row.activatedCourses && row.activatedCourses.length" class="course-summary-list">
-                <div v-for="course in row.activatedCourses" :key="`${row.id}-${course.courseId || course.id}-${course.cardCode || ''}`" class="course-summary-item">
+                <div v-for="course in visibleActivatedCourses(row)" :key="`${row.id}-${course.courseId || course.id}-${course.cardCode || ''}`" class="course-summary-item">
                   <div class="course-summary-title">{{ courseTitle(course) }}</div>
                   <div class="course-summary-meta">
                     <span>开通：{{ shortDateTime(course.activatedAt || course.openedAt) }}</span>
@@ -515,22 +575,20 @@
                     <el-button v-if="course.cardCode" link type="primary" @click="copyActivationCode(course.cardCode)">复制</el-button>
                   </div>
                 </div>
+                <div v-if="row.activatedCourses.length > 2" class="course-summary-more">展开查看全部 {{ row.activatedCourses.length }} 门课程</div>
               </div>
               <span v-else class="muted-text">暂无开通课程</span>
             </template>
           </el-table-column>
-          <el-table-column prop="gender" label="性别" width="90" />
-          <el-table-column prop="grade" label="年级" width="110" show-overflow-tooltip />
-          <el-table-column prop="schoolName" label="学校名字" min-width="150" show-overflow-tooltip />
-          <el-table-column prop="region" label="所在地区" min-width="140" show-overflow-tooltip />
-          <el-table-column prop="organizationName" label="机构/归属" min-width="150" show-overflow-tooltip />
-          <el-table-column prop="activationQuota" label="激活名额" width="120">
+          <el-table-column label="学生资料" min-width="220">
             <template #default="{ row }">
-              <span v-if="row.role === 'agency_admin'">{{ row.activationQuota || 0 }}</span>
-              <span v-else class="muted-text">仅分机构</span>
+              <div class="student-info-cell">
+                <span>{{ row.gender || '-' }} / {{ row.grade || '-' }}</span>
+                <span>{{ row.schoolName || '未填学校' }}</span>
+                <span>{{ row.region || '未填地区' }}</span>
+              </div>
             </template>
           </el-table-column>
-          <el-table-column prop="createdAt" label="注册时间" width="180" show-overflow-tooltip />
           <el-table-column label="操作" fixed="right" width="170">
             <template #default="{ row }">
               <el-button link type="success" @click="showUserStats(row)">统计</el-button>
@@ -575,12 +633,13 @@
 
         <el-card shadow="never" class="admin-block">
           <template #header>激活码设置</template>
-          <el-form :model="activationForm" inline>
+          <el-form :model="activationForm" class="activation-settings-form">
             <el-form-item label="激活码"><el-input v-model="activationForm.code" :disabled="!!activationForm.id" placeholder="不填自动生成9位小写字母数字" style="width: 220px" /></el-form-item>
-            <el-form-item label="课程">
-              <el-select v-model="activationForm.courseId" filterable placeholder="选择课程" style="width: 220px">
+            <el-form-item label="适用课程">
+              <el-select v-model="activationForm.courseId" filterable clearable placeholder="可不选，激活时选择" style="width: 240px">
                 <el-option v-for="course in fullCourseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
               </el-select>
+              <div class="field-hint activation-course-hint">不选课程时，此激活码可用于任意正式课程，由激活人提交时选择。</div>
             </el-form-item>
             <el-form-item label="类型">
               <el-select v-model="activationForm.cardType" style="width: 150px">
@@ -601,7 +660,7 @@
                 <el-option label="已使用" value="used" />
               </el-select>
             </el-form-item>
-            <el-form-item><el-button type="primary" icon="Plus" @click="submitActivationCode">{{ activationForm.id ? '保存激活码' : '新增激活码' }}</el-button></el-form-item>
+            <el-form-item class="activation-form-action"><el-button type="primary" icon="Plus" @click="submitActivationCode">{{ activationForm.id ? '保存激活码' : '新增激活码' }}</el-button></el-form-item>
           </el-form>
         </el-card>
 
@@ -625,60 +684,89 @@
           </el-form-item>
         </el-form>
 
-        <el-table :data="filteredActivationList" border>
-          <el-table-column label="激活码" width="210">
+        <el-table :data="pagedActivationList" border class="record-compact-table activation-table">
+          <el-table-column label="激活码/状态" min-width="230">
             <template #default="{ row }">
-              <div class="activation-code-cell">
-                <span class="activation-code-text">{{ row.code }}</span>
-                <el-button link type="primary" @click="copyActivationCode(row.code)">复制</el-button>
+              <div class="stack-cell">
+                <div class="activation-code-cell">
+                  <span class="activation-code-text">{{ row.code }}</span>
+                  <el-button link type="primary" @click="copyActivationCode(row.code)">复制</el-button>
+                </div>
+                <div class="inline-meta-row">
+                  <el-tag :type="activationStatusTagType(row)">{{ activationStatusText(row) }}</el-tag>
+                  <span>{{ row.cardTypeText || '-' }}</span>
+                </div>
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="课程" min-width="180">
-            <template #default="{ row }">{{ row.courseTitle || (row.courseId ? courseLabel(row.courseId) : '激活时选择') }}</template>
-          </el-table-column>
-          <el-table-column prop="cardTypeText" label="类型" width="130" />
-          <el-table-column prop="ownerUserId" label="归属ID" width="120" />
-          <el-table-column prop="ownerName" label="归宿校区" width="140" show-overflow-tooltip />
-          <el-table-column prop="status" label="状态" width="110">
+          <el-table-column label="课程与归属" min-width="300">
             <template #default="{ row }">
-              <el-tag :type="activationStatusTagType(row)">{{ activationStatusText(row) }}</el-tag>
+              <div class="stack-cell">
+                <strong>{{ activationCourseLabel(row) }}</strong>
+                <span>归属：{{ activationOwnerLabel(row) }}</span>
+                <span>ID：{{ row.ownerUserId || '-' }}</span>
+              </div>
             </template>
           </el-table-column>
-          <el-table-column prop="studentName" label="使用学生" width="120" />
-          <el-table-column prop="region" label="地区" width="120" />
-          <el-table-column prop="activatedAt" label="激活日期" width="180" />
-          <el-table-column prop="expiresAt" label="到期时间" width="180" />
-          <el-table-column label="操作" fixed="right" width="280">
+          <el-table-column label="使用信息" min-width="280">
             <template #default="{ row }">
-              <el-button v-if="canAssignActivation(row)" link type="primary" @click="openActivationAssign(row)">分配</el-button>
-              <el-button link :type="isActivationLocked(row) ? 'success' : 'warning'" @click="toggleActivationLock(row)">{{ isActivationLocked(row) ? '解锁' : '锁定' }}</el-button>
-              <el-button v-if="canUnassignActivation(row)" link type="info" @click="unassignActivationCode(row)">取消分配</el-button>
-              <el-button v-if="row.status === 'used'" link type="danger" :disabled="row.authorizationClosed" @click="closeActivationAuthorization(row)">{{ row.authorizationClosed ? '已关闭授权' : '关闭授权' }}</el-button>
-              <el-button v-else link type="danger" @click="removeActivationCode(row)">删除</el-button>
+              <div class="stack-cell">
+                <span>学生：{{ row.studentName || '-' }}</span>
+                <span>地区：{{ row.region || '-' }}</span>
+                <span>激活：{{ shortDateTime(row.activatedAt) }}</span>
+                <span>到期：{{ dateOnly(row.expiresAt) || '-' }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="230">
+            <template #default="{ row }">
+              <div class="table-action-row">
+                <el-button v-if="canAssignActivation(row)" link type="primary" @click="openActivationAssign(row)">分配</el-button>
+                <el-button link :type="isActivationLocked(row) ? 'success' : 'warning'" @click="toggleActivationLock(row)">{{ isActivationLocked(row) ? '解锁' : '锁定' }}</el-button>
+                <el-button v-if="canUnassignActivation(row)" link type="info" @click="unassignActivationCode(row)">取消分配</el-button>
+                <el-button v-if="row.status === 'used'" link type="danger" :disabled="row.authorizationClosed" @click="closeActivationAuthorization(row)">{{ row.authorizationClosed ? '已关闭授权' : '关闭授权' }}</el-button>
+                <el-button v-else link type="danger" @click="removeActivationCode(row)">删除</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
+        <pagination
+          v-show="filteredActivationList.length > activationPager.pageSize"
+          v-model:page="activationPager.pageNum"
+          v-model:limit="activationPager.pageSize"
+          :total="filteredActivationList.length"
+          :page-sizes="[8, 12, 20, 50]"
+          layout="total, sizes, prev, pager, next"
+          :auto-scroll="false"
+        />
       </el-tab-pane>
 
       <el-tab-pane v-if="canPanel('agencies')" label="校区管理" name="agencies">
-        <el-table :data="agencyList" border>
-          <el-table-column label="校区/机构" min-width="180">
-            <template #default="{ row }">{{ row.agency?.organizationName || row.agency?.name || row.agency?.id }}</template>
+        <el-table :data="agencyList" border class="record-compact-table agency-management-table">
+          <el-table-column label="校区/账号" min-width="260">
+            <template #default="{ row }">
+              <div class="stack-cell">
+                <strong>{{ row.agency?.organizationName || row.agency?.name || row.agency?.id }}</strong>
+                <span>ID：{{ row.agency?.id || '-' }}</span>
+              </div>
+            </template>
           </el-table-column>
-          <el-table-column label="账号ID" width="120">
-            <template #default="{ row }">{{ row.agency?.id }}</template>
-          </el-table-column>
-          <el-table-column prop="quota" label="名额加减" width="160">
+          <el-table-column prop="quota" label="名额加减" width="180">
             <template #default="{ row }">
               <el-input-number :model-value="row.quota || 0" :min="0" size="small" controls-position="right" @change="value => updateAgencyQuota(row, value)" />
             </template>
           </el-table-column>
-          <el-table-column prop="totalCodes" label="激活码" width="100" />
-          <el-table-column prop="activatedCount" label="已激活" width="100" />
-          <el-table-column prop="unusedCount" label="分配未使用" width="120" />
-          <el-table-column prop="lockedCount" label="锁定" width="90" />
-          <el-table-column prop="userCount" label="用户数" width="90" />
+          <el-table-column label="激活码统计" min-width="360">
+            <template #default="{ row }">
+              <div class="agency-metric-strip">
+                <span>总数 <strong>{{ row.totalCodes || 0 }}</strong></span>
+                <span>已激活 <strong>{{ row.activatedCount || 0 }}</strong></span>
+                <span>未使用 <strong>{{ row.unusedCount || 0 }}</strong></span>
+                <span>锁定 <strong>{{ row.lockedCount || 0 }}</strong></span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="userCount" label="用户数" width="100" />
           <el-table-column label="操作" width="110">
             <template #default="{ row }">
               <el-button link type="primary" @click="showAgencyStats(row.agency)">查看明细</el-button>
@@ -703,39 +791,89 @@
             <span>{{ selectedAgencyDetailTitle }}</span>
             <el-button type="primary" link @click="copyVisibleAgencyCodes">复制当前激活码</el-button>
           </div>
-          <el-table :data="selectedAgencyCodeRows" border>
-            <el-table-column label="激活码" width="190">
+          <el-table :data="pagedSelectedAgencyCodeRows" border class="record-compact-table agency-code-table">
+            <el-table-column label="激活码/课程" min-width="280">
               <template #default="{ row }">
-                <div class="activation-code-cell">
-                  <span class="activation-code-text">{{ row.code || '-' }}</span>
-                  <el-button v-if="row.code" link type="primary" @click="copyActivationCode(row.code)">复制</el-button>
+                <div class="stack-cell">
+                  <div class="activation-code-cell">
+                    <span class="activation-code-text">{{ row.code || '-' }}</span>
+                    <el-button v-if="row.code" link type="primary" @click="copyActivationCode(row.code)">复制</el-button>
+                  </div>
+                  <strong>{{ row.courseTitle || '-' }}</strong>
+                  <span>{{ row.cardTypeText || '-' }}</span>
                 </div>
               </template>
             </el-table-column>
-            <el-table-column prop="courseTitle" label="激活科目" min-width="160" show-overflow-tooltip />
-            <el-table-column prop="cardTypeText" label="类型" width="130" />
-            <el-table-column prop="studentName" label="激活人" width="120" />
-            <el-table-column prop="usedByName" label="账号用户" width="120" />
-            <el-table-column prop="recentExamScore" label="分数" width="90" />
-            <el-table-column prop="region" label="地区" width="120" show-overflow-tooltip />
-            <el-table-column prop="schoolName" label="学校" min-width="140" show-overflow-tooltip />
-            <el-table-column prop="activatedAt" label="激活日期" width="180" />
-            <el-table-column prop="expiresAt" label="到期时间" width="180" />
+            <el-table-column label="使用人" min-width="240">
+              <template #default="{ row }">
+                <div class="stack-cell">
+                  <span>激活人：{{ row.studentName || '-' }}</span>
+                  <span>账号：{{ row.usedByName || '-' }}</span>
+                  <span>分数：{{ row.recentExamScore || '-' }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="学校地区" min-width="240">
+              <template #default="{ row }">
+                <div class="stack-cell">
+                  <span>{{ row.schoolName || '未填学校' }}</span>
+                  <span>{{ row.region || '未填地区' }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="时间" width="220">
+              <template #default="{ row }">
+                <div class="stack-cell">
+                  <span>激活：{{ shortDateTime(row.activatedAt) }}</span>
+                  <span>到期：{{ dateOnly(row.expiresAt) || '-' }}</span>
+                </div>
+              </template>
+            </el-table-column>
           </el-table>
+          <pagination
+            v-show="selectedAgencyCodeRows.length > agencyCodePager.pageSize"
+            v-model:page="agencyCodePager.pageNum"
+            v-model:limit="agencyCodePager.pageSize"
+            :total="selectedAgencyCodeRows.length"
+            :page-sizes="[8, 12, 20, 50]"
+            layout="total, sizes, prev, pager, next"
+            :auto-scroll="false"
+          />
         </el-card>
       </el-tab-pane>
 
       <el-tab-pane v-if="canPanel('study')" label="后台记录查看" name="study">
         <el-card shadow="never" class="admin-block">
           <template #header>后台所有操作记录</template>
-          <el-table :data="adminOperationRecords" border height="280">
-            <el-table-column prop="type" label="操作类目" width="140" />
-            <el-table-column prop="user" label="操作人（ID/名字）" width="180" />
-            <el-table-column prop="course" label="课程/科目" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="detail" label="操作内容" min-width="220" show-overflow-tooltip />
-            <el-table-column prop="status" label="状态" width="110" />
+          <el-table :data="pagedAdminOperationRecords" border class="record-compact-table">
+            <el-table-column label="操作信息" min-width="240">
+              <template #default="{ row }">
+                <div class="stack-cell">
+                  <strong>{{ row.type || '后台操作' }}</strong>
+                  <span>操作人：{{ row.user || '-' }}</span>
+                  <span>状态：{{ row.status || '-' }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="内容" min-width="360">
+              <template #default="{ row }">
+                <div class="stack-cell">
+                  <strong>{{ row.course || '-' }}</strong>
+                  <span>{{ row.detail || '-' }}</span>
+                </div>
+              </template>
+            </el-table-column>
             <el-table-column prop="time" label="时间" width="180" />
           </el-table>
+          <pagination
+            v-show="adminOperationRecords.length > operationPager.pageSize"
+            v-model:page="operationPager.pageNum"
+            v-model:limit="operationPager.pageSize"
+            :total="adminOperationRecords.length"
+            :page-sizes="[8, 12, 20, 50]"
+            layout="total, sizes, prev, pager, next"
+            :auto-scroll="false"
+          />
         </el-card>
         <el-row :gutter="16">
           <el-col :span="12">
@@ -1058,28 +1196,38 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="questionOpen" :title="questionForm.id ? '编辑题目' : '新增题目'" width="900px" class="question-edit-dialog" append-to-body>
+    <el-dialog v-model="questionOpen" :title="questionForm.id ? '编辑题目' : '新增题目'" width="1000px" class="question-edit-dialog" append-to-body>
       <el-form :model="questionForm" label-width="90px">
         <el-form-item label="题型类型">
           <el-radio-group v-model="questionForm.questionType" class="question-type-group">
             <el-radio-button v-for="item in questionTypeOptions" :key="item.value" :label="item.value">{{ item.label }}</el-radio-button>
           </el-radio-group>
-          <div class="field-hint">可填：选择题、填空题、主观题；复习测试和章节扫雷会按题型随机抽题。</div>
+          <div class="field-hint">可填：选择题、填空题、主观题、阅读理解类题；公式用 $x^2$ 或 $$x^2$$，下划线用 __文字__。</div>
         </el-form-item>
         <el-form-item label="题干">
           <div class="question-media-editor">
-              <div class="question-media-pane">
-                <div class="pane-label">文字题干</div>
-                <el-input v-model="questionForm.stem" type="textarea" :rows="4" placeholder="输入题干文字" />
-                <div v-if="questionForm.stem" class="math-preview" v-html="mathHtml(questionForm.stem)"></div>
+            <div class="question-media-pane">
+              <div class="pane-label">{{ questionForm.questionType === 'reading' ? '阅读题干（大题干 / 阅读材料）' : '文字题干' }}</div>
+              <div class="markup-toolbar">
+                <el-button size="small" icon="EditPen" @click="insertQuestionMarkup('stem', 'inlineMath')">行内公式</el-button>
+                <el-button size="small" icon="Collection" @click="insertQuestionMarkup('stem', 'displayMath')">独立公式</el-button>
+                <el-button size="small" icon="Minus" @click="insertQuestionMarkup('stem', 'underline')">下划线</el-button>
               </div>
+              <el-input
+                v-model="questionForm.stem"
+                type="textarea"
+                :rows="questionForm.questionType === 'reading' ? 6 : 4"
+                :placeholder="questionForm.questionType === 'reading' ? '输入阅读材料或大题干，下面可继续添加多个问题和选项' : '输入题干文字，支持 LaTeX 公式和 __下划线文字__'"
+              />
+              <div v-if="questionForm.stem" class="math-preview" v-html="mathHtml(questionForm.stem)"></div>
+            </div>
             <div class="question-media-pane upload-pane">
               <div class="pane-label">题干图片</div>
               <image-upload v-model="questionForm.stemImageUrl" :limit="10" :file-size="20" :file-type="['png', 'jpg', 'jpeg', 'webp']" />
               <div class="field-hint">可上传多张，拖动图片可排序。</div>
               <div class="pane-label file-pane-label">题干文档</div>
               <file-upload v-model="questionForm.stemFileUrl" :limit="1" :file-size="500" :file-type="['pdf', 'doc', 'docx']" />
-              <div class="pane-label file-pane-label">题干音频</div>
+              <div class="pane-label file-pane-label">听力音频（题干下方播放）</div>
               <file-upload v-model="questionForm.stemAudioUrl" :limit="1" :file-size="50" :file-type="['mp3', 'm4a', 'wav', 'aac', 'ogg']" />
               <audio v-if="questionForm.stemAudioUrl" class="question-audio-player" :src="mediaUrl(questionForm.stemAudioUrl)" controls preload="metadata"></audio>
             </div>
@@ -1090,6 +1238,10 @@
             <div class="question-media-editor">
               <div class="question-media-pane">
                 <div class="pane-label">文字选项</div>
+                <div class="markup-toolbar">
+                  <el-button size="small" icon="EditPen" @click="insertQuestionMarkup('optionsText', 'inlineMath')">行内公式</el-button>
+                  <el-button size="small" icon="Minus" @click="insertQuestionMarkup('optionsText', 'underline')">下划线</el-button>
+                </div>
                 <el-input v-model="questionForm.optionsText" type="textarea" :rows="4" placeholder="每行一个选项；如只有图片，可留空并按顺序上传图片" />
                 <div v-if="questionForm.optionsText" class="math-preview" v-html="mathHtml(questionForm.optionsText)"></div>
               </div>
@@ -1103,6 +1255,61 @@
           <el-form-item label="答案序号">
             <el-input-number v-model="questionForm.answer" :min="1" />
             <div class="field-hint">从 1 开始填写：1=A，2=B，4=D，7=G。</div>
+          </el-form-item>
+        </template>
+        <template v-else-if="questionForm.questionType === 'reading'">
+          <el-form-item label="小题">
+            <div class="reading-question-editor">
+              <div class="reading-question-head">
+                <div>
+                  <strong>阅读理解类题</strong>
+                  <span>一个阅读题干下可添加多个问题，每个问题单独设置题干、选项和答案。</span>
+                </div>
+                <el-button type="primary" plain icon="Plus" @click="addReadingSubQuestion">添加问题选项</el-button>
+              </div>
+              <div v-if="!questionForm.subQuestions.length" class="empty-editor">请至少添加 1 个小题。</div>
+              <div v-for="(sub, subIndex) in questionForm.subQuestions" :key="sub.uid || sub.id || subIndex" class="reading-sub-editor">
+                <div class="reading-sub-editor-head">
+                  <strong>问题 {{ subIndex + 1 }}</strong>
+                  <div class="reading-sub-actions">
+                    <el-select v-model="sub.questionType" class="reading-sub-type">
+                      <el-option label="选择题" value="choice" />
+                      <el-option label="填空题" value="fill" />
+                      <el-option label="主观题" value="subjective" />
+                    </el-select>
+                    <el-input-number v-if="sub.questionType === 'choice'" v-model="sub.answer" :min="1" controls-position="right" class="reading-answer-input" />
+                    <el-button link type="danger" icon="Delete" @click="removeReadingSubQuestion(subIndex)">删除</el-button>
+                  </div>
+                </div>
+                <div class="pane-label">问题 {{ subIndex + 1 }} 题干</div>
+                <div class="markup-toolbar">
+                  <el-button size="small" icon="EditPen" @click="insertSubQuestionMarkup(sub, 'stem', 'inlineMath')">行内公式</el-button>
+                  <el-button size="small" icon="Minus" @click="insertSubQuestionMarkup(sub, 'stem', 'underline')">下划线</el-button>
+                </div>
+                <el-input v-model="sub.stem" type="textarea" :rows="2" placeholder="输入小题问题" />
+                <div v-if="sub.stem" class="math-preview compact" v-html="mathHtml(sub.stem)"></div>
+                <template v-if="sub.questionType === 'choice'">
+                  <div class="pane-label file-pane-label">问题 {{ subIndex + 1 }} 选项</div>
+                  <div class="markup-toolbar">
+                    <el-button size="small" icon="EditPen" @click="insertSubQuestionMarkup(sub, 'optionsText', 'inlineMath')">行内公式</el-button>
+                    <el-button size="small" icon="Minus" @click="insertSubQuestionMarkup(sub, 'optionsText', 'underline')">下划线</el-button>
+                  </div>
+                  <el-input v-model="sub.optionsText" type="textarea" :rows="3" placeholder="每行一个选项，例如 A/B/C/D 对应 4 行" />
+                  <div class="field-hint">答案序号从 1 开始：1=A，2=B，3=C。</div>
+                  <div v-if="sub.optionsText" class="math-preview compact" v-html="mathHtml(sub.optionsText)"></div>
+                </template>
+                <template v-else>
+                  <div class="pane-label file-pane-label">参考答案</div>
+                  <el-input
+                    v-model="sub.answerText"
+                    type="textarea"
+                    :rows="sub.questionType === 'fill' ? 2 : 3"
+                    :placeholder="sub.questionType === 'fill' ? '多个可接受答案可换行' : '填写参考答案或评分要点'"
+                  />
+                </template>
+              </div>
+              <el-button class="reading-add-question-btn" type="primary" plain icon="Plus" @click="addReadingSubQuestion">添加问题选项</el-button>
+            </div>
           </el-form-item>
         </template>
         <el-form-item v-else label="参考答案">
@@ -1396,6 +1603,10 @@ const orderRecordTab = ref('orders')
 const selectedUserStats = ref(null)
 const selectedRatingCourseKey = ref('')
 const selectedRatingDetailId = ref('')
+const orderPager = reactive(defaultLocalPager(8))
+const operationPager = reactive(defaultLocalPager(8))
+const activationPager = reactive(defaultLocalPager(8))
+const agencyCodePager = reactive(defaultLocalPager(8))
 const orderForm = reactive({ userId: '56596', courseId: 'gk-math-full', cardCode: '', cardType: 'year', studentName: '', gender: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
 const codeActivateForm = reactive({ userId: '56596', code: '', courseId: '', studentName: '', gender: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
 const activationQuery = reactive({ keyword: '', status: '', owner: '' })
@@ -1422,7 +1633,8 @@ const contentModes = [
 const questionTypeOptions = [
   { label: '选择题', value: 'choice' },
   { label: '填空题', value: 'fill' },
-  { label: '主观题', value: 'subjective' }
+  { label: '主观题', value: 'subjective' },
+  { label: '阅读理解类题', value: 'reading' }
 ]
 const ratingOptions = [1, 2, 3, 4, 5]
 const genderOptions = ['男', '女']
@@ -1536,6 +1748,8 @@ const filteredActivationList = computed(() => {
     return statusMatched && ownerMatched && (!keyword || text.includes(keyword))
   })
 })
+const pagedOrderList = computed(() => paginateRows(orderList.value, orderPager))
+const pagedActivationList = computed(() => paginateRows(filteredActivationList.value, activationPager))
 const filteredUserList = computed(() => {
   const keyword = userQuery.keyword.trim().toLowerCase()
   return userList.value.filter(user => {
@@ -1597,6 +1811,7 @@ const adminOperationRecords = computed(() => {
     time: log.time || ''
   })).sort((a, b) => String(b.time || '').localeCompare(String(a.time || '')))
 })
+const pagedAdminOperationRecords = computed(() => paginateRows(adminOperationRecords.value, operationPager))
 const selectedUserStatsTitle = computed(() => {
   if (!selectedUserStats.value) return ''
   return selectedUserStats.value.type === 'agency'
@@ -1645,6 +1860,7 @@ const selectedAgencyCodeRows = computed(() => {
     cardTypeText: item.cardTypeText || item.durationText || '-'
   }))
 })
+const pagedSelectedAgencyCodeRows = computed(() => paginateRows(selectedAgencyCodeRows.value, agencyCodePager))
 const isLessonEditorMode = computed(() => ['review', 'tactics', 'knowledge'].includes(contentMode.value))
 const activeVersionIndex = computed(() => contentMode.value === 'tactics' ? 1 : (contentMode.value === 'knowledge' ? 2 : 0))
 const activeVersion = computed(() => isLessonEditorMode.value ? ensureCourseVersion(activeVersionIndex.value) : null)
@@ -1708,6 +1924,19 @@ watch(visiblePanelNames, (names) => {
     activeTab.value = names[0] || ''
   }
 }, { immediate: true })
+
+watch([() => activationQuery.keyword, () => activationQuery.status, () => activationQuery.owner], () => resetPager(activationPager))
+watch(selectedAgencyDetailStatus, () => resetPager(agencyCodePager))
+watch(orderRecordTab, () => {
+  resetPager(orderPager)
+  resetPager(operationPager)
+})
+
+watch(() => questionForm.questionType, (type) => {
+  if (normalizeQuestionType(type) === 'reading' && !questionForm.subQuestions.length) {
+    questionForm.subQuestions = [defaultReadingSubQuestion()]
+  }
+})
 
 async function loadAll() {
   const tasks = []
@@ -2454,6 +2683,76 @@ async function removeDoc(row) {
   await loadDocsData()
 }
 
+function markupSnippet(type) {
+  if (type === 'displayMath') return '\n$$\nx^2+1\n$$'
+  if (type === 'underline') return '__需要下划线的文字__'
+  return '$x^2$'
+}
+
+function appendMarkupValue(value = '', type = 'inlineMath') {
+  const text = String(value || '')
+  const prefix = text && !/[\s\n]$/.test(text) ? ' ' : ''
+  return `${text}${prefix}${markupSnippet(type)}`
+}
+
+function insertQuestionMarkup(field, type) {
+  questionForm[field] = appendMarkupValue(questionForm[field], type)
+}
+
+function insertSubQuestionMarkup(sub, field, type) {
+  if (!sub) return
+  sub[field] = appendMarkupValue(sub[field], type)
+}
+
+function addReadingSubQuestion() {
+  questionForm.subQuestions.push(defaultReadingSubQuestion())
+}
+
+function removeReadingSubQuestion(index) {
+  questionForm.subQuestions.splice(index, 1)
+}
+
+function editableReadingSubQuestions(value) {
+  const list = Array.isArray(value) ? value : []
+  return list.map((item, index) => {
+    const type = normalizeQuestionType(item.questionType || item.type)
+    const options = Array.isArray(item.options) ? item.options.map(option => String(option || '')) : []
+    return {
+      ...defaultReadingSubQuestion(),
+      ...item,
+      uid: item.uid || `sub-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+      id: item.subQuestionId || item.rawId || item.id || '',
+      questionType: type === 'reading' ? 'choice' : type,
+      stem: item.stem || item.question || '',
+      options,
+      optionsText: options.join('\n'),
+      answer: type === 'choice' ? Number(item.answer || 0) + 1 : 1,
+      answerText: item.answerText || (type === 'choice' ? '' : String(item.answer || ''))
+    }
+  })
+}
+
+function readingSubQuestionPayload(sub, index) {
+  const type = normalizeQuestionType(sub.questionType)
+  const options = type === 'choice'
+    ? String(sub.optionsText || '').split('\n').map(item => item.trim())
+    : []
+  while (options.length && !options[options.length - 1]) {
+    options.pop()
+  }
+  return {
+    id: sub.id || `sub-${index + 1}`,
+    questionType: type === 'reading' ? 'choice' : type,
+    stem: String(sub.stem || '').trim(),
+    options,
+    answer: type === 'choice' ? Number(sub.answer || 1) - 1 : undefined,
+    answerText: type === 'choice' ? '' : String(sub.answerText || '').trim(),
+    acceptableAnswers: type === 'fill'
+      ? String(sub.answerText || '').split('\n').map(item => item.trim()).filter(Boolean)
+      : []
+  }
+}
+
 function openQuestionDialog(row) {
   Object.assign(questionForm, defaultQuestionForm(), row || {})
   questionForm.questionType = normalizeQuestionType(questionForm.questionType || (row && row.options && row.options.length ? 'choice' : 'choice'))
@@ -2464,6 +2763,10 @@ function openQuestionDialog(row) {
   questionForm.optionImageUrlsText = row ? mediaListText(row.optionImageUrls || row.optionImages || row.optionImageUrl) : ''
   questionForm.answer = row && questionForm.questionType === 'choice' ? Number(row.answer || 0) + 1 : (questionForm.answer || 1)
   questionForm.answerText = row ? (row.answerText || (questionForm.questionType === 'choice' ? '' : String(row.answer || ''))) : ''
+  questionForm.subQuestions = row ? editableReadingSubQuestions(row.subQuestions) : []
+  if (questionForm.questionType === 'reading' && !questionForm.subQuestions.length) {
+    questionForm.subQuestions = [defaultReadingSubQuestion()]
+  }
   questionForm.bindConfirmed = false
   questionOpen.value = true
 }
@@ -2486,6 +2789,9 @@ async function submitQuestion() {
     ElMessage.warning('请填写题干、上传题干图片或题干音频')
     return
   }
+  const subQuestions = questionType === 'reading'
+    ? questionForm.subQuestions.map(readingSubQuestionPayload)
+    : []
   if (questionType === 'choice' && optionCount < 2) {
     ElMessage.warning('选择题至少填写两个选项或上传两张选项图片')
     return
@@ -2494,7 +2800,32 @@ async function submitQuestion() {
     ElMessage.warning(`答案序号不能超出选项数量，当前可填 1-${optionCount}`)
     return
   }
-  if (questionType !== 'choice' && !String(questionForm.answerText || '').trim() && !String(questionForm.answerImageUrl || '').trim() && !String(questionForm.answerFileUrl || '').trim()) {
+  if (questionType === 'reading') {
+    if (!subQuestions.length) {
+      ElMessage.warning('阅读理解至少添加 1 个小题')
+      return
+    }
+    for (let index = 0; index < subQuestions.length; index += 1) {
+      const sub = subQuestions[index]
+      if (!sub.stem) {
+        ElMessage.warning(`请填写第 ${index + 1} 个小题题干`)
+        return
+      }
+      if (sub.questionType === 'choice' && sub.options.length < 2) {
+        ElMessage.warning(`第 ${index + 1} 个小题至少填写两个选项`)
+        return
+      }
+      if (sub.questionType === 'choice' && (sub.answer < 0 || sub.answer >= sub.options.length)) {
+        ElMessage.warning(`第 ${index + 1} 个小题答案序号不能超出选项数量`)
+        return
+      }
+      if (sub.questionType !== 'choice' && !sub.answerText) {
+        ElMessage.warning(`请填写第 ${index + 1} 个小题参考答案`)
+        return
+      }
+    }
+  }
+  if (questionType !== 'choice' && questionType !== 'reading' && !String(questionForm.answerText || '').trim() && !String(questionForm.answerImageUrl || '').trim() && !String(questionForm.answerFileUrl || '').trim()) {
     ElMessage.warning('请填写参考答案、上传参考答案图片或文档')
     return
   }
@@ -2506,11 +2837,12 @@ async function submitQuestion() {
     ...questionForm,
     questionType,
     options,
+    subQuestions,
     stemImageUrl,
     stemAudioUrl,
     optionImageUrls,
     answer: questionType === 'choice' ? answerIndex : undefined,
-    answerText: questionType === 'choice' ? '' : String(questionForm.answerText || '').trim(),
+    answerText: questionType === 'choice' || questionType === 'reading' ? '' : String(questionForm.answerText || '').trim(),
     acceptableAnswers: questionType === 'fill'
       ? String(questionForm.answerText || '').split('\n').map(item => item.trim()).filter(Boolean)
       : []
@@ -2580,10 +2912,6 @@ async function handleCloseOrder(row) {
 }
 
 async function submitActivationCode() {
-  if (!activationForm.courseId) {
-    ElMessage.warning('请选择要绑定的课程')
-    return
-  }
   if (!activationForm.cardType) {
     ElMessage.warning('请选择卡类型')
     return
@@ -2756,6 +3084,7 @@ function questionSubjectLabel(row = {}) {
 function normalizeQuestionType(value) {
   if (value === 'fill' || value === '填空' || value === '填空题') return 'fill'
   if (value === 'subjective' || value === '主观' || value === '主观题') return 'subjective'
+  if (value === 'reading' || value === '阅读理解' || value === '阅读理解题') return 'reading'
   return 'choice'
 }
 
@@ -2763,6 +3092,7 @@ function questionTypeLabel(value) {
   const type = normalizeQuestionType(value)
   if (type === 'fill') return '填空题'
   if (type === 'subjective') return '主观题'
+  if (type === 'reading') return '阅读理解'
   return '选择题'
 }
 
@@ -2770,6 +3100,7 @@ function questionTypeTag(row = {}) {
   const type = normalizeQuestionType(row.questionType)
   if (type === 'fill') return 'warning'
   if (type === 'subjective') return 'success'
+  if (type === 'reading') return 'info'
   return 'primary'
 }
 
@@ -2808,6 +3139,10 @@ function stemAudioUrl(row = {}) {
 
 function questionContentSummary(row = {}) {
   const type = normalizeQuestionType(row.questionType)
+  if (type === 'reading') {
+    const count = Array.isArray(row.subQuestions) ? row.subQuestions.length : 0
+    return count ? `阅读材料，${count} 个小题` : '阅读材料，未添加小题'
+  }
   if (type === 'choice') {
     const options = Array.isArray(row.options) ? row.options : []
     const text = options.map((item, index) => `${String.fromCharCode(65 + index)}. ${item || '图片选项'}`).join(' / ')
@@ -2823,6 +3158,17 @@ function mathHtml(value = '', fallback = '') {
 
 function questionAnswerLabel(row = {}) {
   const type = normalizeQuestionType(row.questionType)
+  if (type === 'reading') {
+    const subs = Array.isArray(row.subQuestions) ? row.subQuestions : []
+    return subs.map((item, index) => {
+      const subType = normalizeQuestionType(item.questionType)
+      if (subType === 'choice') {
+        const answerIndex = Number(item.answer || 0)
+        return `${index + 1}. ${Number.isFinite(answerIndex) ? String.fromCharCode(65 + answerIndex) : '-'}`
+      }
+      return `${index + 1}. ${item.answerText || item.answer || '-'}`
+    }).join(' / ') || '-'
+  }
   if (type === 'choice') {
     const index = Number(row.answer || 0)
     if (!Number.isFinite(index) || index < 0) return '-'
@@ -2914,6 +3260,42 @@ function canUnassignActivation(row = {}) {
   return row.status !== 'used' && !!row.ownerUserId
 }
 
+function defaultLocalPager(pageSize = 8) {
+  return { pageNum: 1, pageSize }
+}
+
+function paginateRows(rows = [], pager = {}) {
+  const list = Array.isArray(rows) ? rows : []
+  const pageSize = Math.max(1, Number(pager.pageSize || 8))
+  const pageNum = Math.max(1, Number(pager.pageNum || 1))
+  const start = (pageNum - 1) * pageSize
+  return list.slice(start, start + pageSize)
+}
+
+function resetPager(pager = {}) {
+  pager.pageNum = 1
+}
+
+function orderStatusText(row = {}) {
+  if (row.status === 'activated') return '已开通'
+  if (row.status === 'closed') return '已关闭'
+  return row.status || '-'
+}
+
+function orderStatusTagType(row = {}) {
+  if (row.status === 'activated') return 'success'
+  if (row.status === 'closed') return 'info'
+  return 'warning'
+}
+
+function activationCourseLabel(row = {}) {
+  return row.courseTitle || (row.courseId ? courseLabel(row.courseId) : '激活时选择课程')
+}
+
+function activationOwnerLabel(row = {}) {
+  return row.ownerName || row.ownerUserId || '未分配'
+}
+
 function userRoleLabel(value = '') {
   return userRoleOptions.find(item => item.value === value)?.label || value || '学生'
 }
@@ -2955,6 +3337,10 @@ function shortDateTime(value = '') {
 
 function courseExpiryText(course = {}) {
   return dateOnly(course.expiresAt || course.expiry) || '-'
+}
+
+function visibleActivatedCourses(row = {}) {
+  return Array.isArray(row.activatedCourses) ? row.activatedCourses.slice(0, 2) : []
 }
 
 function editableActivatedCourses(courses = []) {
@@ -3017,6 +3403,19 @@ function defaultDocForm() {
   }
 }
 
+function defaultReadingSubQuestion() {
+  return {
+    uid: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: '',
+    questionType: 'choice',
+    stem: '',
+    optionsText: '',
+    options: [],
+    answer: 1,
+    answerText: ''
+  }
+}
+
 function defaultQuestionForm() {
   return {
     id: '',
@@ -3028,6 +3427,7 @@ function defaultQuestionForm() {
     optionsText: '',
     optionImageUrls: [],
     optionImageUrlsText: '',
+    subQuestions: [],
     answer: 0,
     answerText: '',
     analysis: '',
@@ -3187,6 +3587,87 @@ function defaultSubAccountForm() {
   white-space: nowrap;
 }
 
+.activation-settings-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 18px;
+  align-items: start;
+}
+
+.activation-settings-form :deep(.el-form-item) {
+  margin: 0;
+}
+
+.activation-settings-form :deep(.el-form-item__content) {
+  min-width: 0;
+  align-items: flex-start;
+}
+
+.activation-settings-form :deep(.el-input),
+.activation-settings-form :deep(.el-select) {
+  width: 100% !important;
+}
+
+.activation-form-action {
+  align-self: end;
+}
+
+.record-compact-table {
+  width: 100%;
+}
+
+.record-compact-table :deep(.el-table__cell) {
+  vertical-align: top;
+}
+
+.stack-cell {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  line-height: 1.45;
+}
+
+.stack-cell strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stack-cell span,
+.mono-line {
+  min-width: 0;
+  overflow: hidden;
+  color: #667085;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono-line {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.inline-meta-row,
+.table-action-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.table-action-row :deep(.el-button) {
+  margin-left: 0;
+}
+
+.table-pagination,
+.pagination-container {
+  margin-top: 12px;
+}
+
 .admin-block {
   margin-bottom: 16px;
   border-radius: 8px;
@@ -3312,9 +3793,60 @@ function defaultSubAccountForm() {
   margin-top: 16px;
 }
 
+.user-management-table {
+  width: 100%;
+}
+
+.user-management-table :deep(.el-table__cell) {
+  vertical-align: top;
+}
+
+.user-main-cell,
+.user-identity-cell,
+.student-info-cell {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.user-main-cell strong {
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.user-main-cell span,
+.user-identity-cell span,
+.student-info-cell span {
+  min-width: 0;
+  overflow: hidden;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .user-course-expand {
-  padding: 8px 18px;
+  padding: 12px 18px;
   background: #fbfdff;
+}
+
+.user-expand-profile {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px 18px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edf1f7;
+  color: #4b5563;
+  font-size: 13px;
 }
 
 .course-expand-grid {
@@ -3392,6 +3924,12 @@ function defaultSubAccountForm() {
 
 .course-summary-code :deep(.el-button) {
   padding: 0;
+}
+
+.course-summary-more {
+  color: #409eff;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .user-course-editor {
@@ -3495,6 +4033,29 @@ function defaultSubAccountForm() {
 .agency-card.clickable.active {
   border-color: #409eff;
   background: #f0f7ff;
+}
+
+.agency-metric-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  gap: 8px;
+}
+
+.agency-metric-strip span {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.agency-metric-strip strong {
+  display: block;
+  margin-top: 3px;
+  color: #1f2937;
+  font-size: 16px;
 }
 
 .agency-detail-toolbar {
@@ -3774,6 +4335,83 @@ function defaultSubAccountForm() {
   margin: 6px 0;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+.math-rich-preview :deep(u),
+.math-preview :deep(u) {
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.markup-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.math-preview.compact {
+  margin-top: 8px;
+  padding: 8px 10px;
+}
+
+.reading-question-editor {
+  width: 100%;
+  display: grid;
+  gap: 12px;
+}
+
+.reading-question-head,
+.reading-sub-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reading-sub-editor-head {
+  margin-bottom: 12px;
+}
+
+.reading-question-head strong,
+.reading-sub-editor-head strong {
+  display: block;
+  color: #111827;
+  font-size: 14px;
+}
+
+.reading-question-head span {
+  display: block;
+  margin-top: 3px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.reading-sub-editor {
+  padding: 16px;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.reading-sub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.reading-sub-type {
+  width: 116px;
+}
+
+.reading-answer-input {
+  width: 128px;
+}
+
+.reading-add-question-btn {
+  justify-self: start;
 }
 
 .reference-answer-pane {
