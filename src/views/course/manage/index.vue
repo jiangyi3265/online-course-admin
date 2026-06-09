@@ -1466,6 +1466,7 @@
               <el-tag v-if="questionSubjectLabel(question) !== '-'" size="small" type="success">{{ questionSubjectLabel(question) }}</el-tag>
               <el-tag v-if="question.knowledge" size="small">{{ question.knowledge }}</el-tag>
               <el-tag v-if="question.province" size="small" type="info">{{ question.province }}</el-tag>
+              <el-button class="question-view-button" size="small" type="primary" plain @click.stop="openQuestionDetail(question)">查看题目</el-button>
             </div>
           </div>
         </div>
@@ -1474,6 +1475,81 @@
       <template #footer>
         <el-button @click="questionPickerOpen = false">取消</el-button>
         <el-button type="primary" @click="applyQuestionSelection">加入所选题目</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="questionDetailOpen" title="题目详情" width="780px" class="question-detail-dialog" append-to-body>
+      <div v-if="questionDetail" class="question-detail-view">
+        <div class="question-detail-tags">
+          <el-tag size="small" :type="questionTypeTag(questionDetail)">{{ questionTypeLabel(questionDetail.questionType) }}</el-tag>
+          <el-tag v-if="questionSubjectLabel(questionDetail) !== '-'" size="small" type="success">{{ questionSubjectLabel(questionDetail) }}</el-tag>
+          <el-tag v-if="questionDetail.knowledge" size="small">{{ questionDetail.knowledge }}</el-tag>
+          <el-tag v-if="questionDetail.province" size="small" type="info">{{ questionDetail.province }}</el-tag>
+        </div>
+        <div class="question-detail-section">
+          <div class="question-detail-label">{{ normalizeQuestionType(questionDetail.questionType) === 'reading' ? '阅读材料' : '题干' }}</div>
+          <div class="question-detail-content math-rich-preview" v-html="mathHtml(questionStemText(questionDetail) || '未填写题干')"></div>
+          <audio v-if="stemAudioUrl(questionDetail)" class="question-audio-player" :src="stemAudioUrl(questionDetail)" controls preload="metadata"></audio>
+          <div v-if="stemImageList(questionDetail).length" class="question-detail-images">
+            <el-image
+              v-for="(url, index) in stemImageList(questionDetail)"
+              :key="`${url}-${index}`"
+              class="question-picker-thumb"
+              :src="url"
+              fit="cover"
+              :preview-src-list="stemImageList(questionDetail)"
+              :initial-index="index"
+              preview-teleported
+            />
+          </div>
+        </div>
+        <template v-if="normalizeQuestionType(questionDetail.questionType) === 'reading'">
+          <div v-for="(sub, subIndex) in readingSubQuestions(questionDetail)" :key="sub.id || sub.uid || subIndex" class="question-detail-section sub">
+            <div class="question-detail-label">问题 {{ subIndex + 1 }}</div>
+            <div class="question-detail-content math-rich-preview" v-html="mathHtml(questionStemText(sub) || '未填写小题题干')"></div>
+            <div v-if="normalizeQuestionType(sub.questionType) === 'choice'" class="question-detail-options">
+              <div v-for="(option, optionIndex) in questionOptions(sub)" :key="optionIndex" class="question-detail-option">
+                <span>{{ String.fromCharCode(65 + optionIndex) }}.</span>
+                <div class="math-rich-preview" v-html="mathHtml(option || '图片选项')"></div>
+              </div>
+            </div>
+            <div class="question-detail-answer">参考答案：{{ readingSubAnswerLabel(sub) }}</div>
+          </div>
+        </template>
+        <template v-else-if="normalizeQuestionType(questionDetail.questionType) === 'choice'">
+          <div class="question-detail-section">
+            <div class="question-detail-label">选项</div>
+            <div class="question-detail-options">
+              <div v-for="(option, optionIndex) in questionOptions(questionDetail)" :key="optionIndex" class="question-detail-option">
+                <span>{{ String.fromCharCode(65 + optionIndex) }}.</span>
+                <div class="math-rich-preview" v-html="mathHtml(option || '图片选项')"></div>
+              </div>
+            </div>
+            <div v-if="optionImageList(questionDetail).length" class="question-detail-images">
+              <el-image
+                v-for="(url, index) in optionImageList(questionDetail)"
+                :key="`${url}-${index}`"
+                class="question-picker-thumb"
+                :src="url"
+                fit="cover"
+                :preview-src-list="optionImageList(questionDetail)"
+                :initial-index="index"
+                preview-teleported
+              />
+            </div>
+          </div>
+        </template>
+        <div class="question-detail-section">
+          <div class="question-detail-label">参考答案</div>
+          <div class="question-detail-answer math-rich-preview" v-html="mathHtml(questionAnswerLabel(questionDetail))"></div>
+        </div>
+        <div v-if="questionDetail.analysis" class="question-detail-section">
+          <div class="question-detail-label">解析</div>
+          <div class="question-detail-content math-rich-preview" v-html="mathHtml(questionDetail.analysis)"></div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="questionDetailOpen = false">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -1661,6 +1737,8 @@ const questionPickerType = ref('')
 const questionPickerKnowledge = ref('')
 const questionPickerProvince = ref('')
 const selectedQuestionIds = ref([])
+const questionDetailOpen = ref(false)
+const questionDetail = ref(null)
 const markupSelections = reactive({})
 const contentModes = [
   { label: '章节扫雷', value: 'chapterQuiz', buttonLabel: '添加章节扫雷内容' },
@@ -1923,7 +2001,14 @@ const filteredQuestionOptions = computed(() => {
   const keyword = questionPickerKeyword.value.trim().toLowerCase()
   const subject = String(questionPickerSubject.value || '').replace(/\s/g, '')
   return questionList.value.filter(question => {
-    const text = `${question.stem || ''} ${question.knowledge || ''} ${question.province || ''} ${questionSubjectLabel(question)}`.toLowerCase()
+    const text = [
+      questionStemText(question),
+      questionOptions(question).join(' '),
+      readingSubQuestions(question).map(sub => `${questionStemText(sub)} ${questionOptions(sub).join(' ')}`).join(' '),
+      question.knowledge || '',
+      question.province || '',
+      questionSubjectLabel(question)
+    ].join(' ').toLowerCase()
     const questionSubject = String(questionSubjectLabel(question) || '').replace(/\s/g, '')
     const matchedKeyword = !keyword || text.includes(keyword)
     const matchedSubject = !subject || questionSubject === subject
@@ -2478,6 +2563,11 @@ function applyQuestionSelection() {
     picker.target.name = first?.knowledge || '题库'
   }
   questionPickerOpen.value = false
+}
+
+function openQuestionDetail(row) {
+  questionDetail.value = row || null
+  questionDetailOpen.value = !!row
 }
 
 function uniqueQuestionField(field) {
@@ -3219,6 +3309,38 @@ function optionImageList(row = {}) {
   return mediaList(row.optionImageUrls || row.optionImages || row.optionImageUrl)
 }
 
+function questionStemText(row = {}) {
+  return firstQuestionText(
+    row.stem,
+    row.questionStem,
+    row.question,
+    row.title,
+    row.content,
+    row.questionContent
+  )
+}
+
+function firstQuestionText(...values) {
+  for (const value of values) {
+    const text = String(value || '').trim()
+    if (text) return text
+  }
+  return ''
+}
+
+function questionOptions(row = {}) {
+  if (Array.isArray(row.options)) return row.options.map(item => String(item || ''))
+  if (Array.isArray(row.optionList)) return row.optionList.map(item => String(item || ''))
+  return String(row.optionsText || row.optionText || '')
+    .split('\n')
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function readingSubQuestions(row = {}) {
+  return Array.isArray(row.subQuestions) ? row.subQuestions : []
+}
+
 function stemImageList(row = {}) {
   return mediaList(row.stemImageUrl || row.questionImageUrl || row.stemImage)
 }
@@ -3253,13 +3375,22 @@ function plainQuestionText(value = '') {
 }
 
 function questionPickerStem(row = {}) {
-  const stem = plainQuestionText(row.stem)
+  const stem = plainQuestionText(questionStemText(row))
   if (normalizeQuestionType(row.questionType) === 'reading') {
-    const count = Array.isArray(row.subQuestions) ? row.subQuestions.length : 0
+    const count = readingSubQuestions(row).length
     const preview = stem || (stemImageList(row).length ? '图片阅读材料' : '未填写阅读材料')
     return `${preview}\n（阅读理解类题，${count || 0} 个小题）`
   }
   return stem || (stemImageList(row).length ? '图片题干' : '未填写题干')
+}
+
+function readingSubAnswerLabel(sub = {}) {
+  const type = normalizeQuestionType(sub.questionType)
+  if (type === 'choice') {
+    const answerIndex = Number(sub.answer || 0)
+    return Number.isFinite(answerIndex) && answerIndex >= 0 ? `${answerIndex + 1}（${String.fromCharCode(65 + answerIndex)}）` : '-'
+  }
+  return sub.answerText || sub.answer || '-'
 }
 
 function questionAnswerLabel(row = {}) {
@@ -4558,7 +4689,7 @@ function defaultSubAccountForm() {
 }
 
 .question-picker-audio {
-  margin: 8px 0 0 28px;
+  margin: 0;
 }
 
 .upload-pane {
@@ -4687,7 +4818,84 @@ function defaultSubAccountForm() {
 .question-option-meta {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
+}
+
+.question-view-button {
+  margin-left: auto;
+}
+
+.question-detail-view {
+  display: grid;
+  gap: 14px;
+}
+
+.question-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.question-detail-section {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.question-detail-section.sub {
+  background: #fff;
+}
+
+.question-detail-label {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.question-detail-content {
+  max-height: 260px;
+  overflow: auto;
+  color: #1f2937;
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+.question-detail-options {
+  display: grid;
+  gap: 8px;
+}
+
+.question-detail-option {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 8px 10px;
+  border: 1px solid #eef2f7;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.question-detail-option > span {
+  color: #4b5563;
+  font-weight: 800;
+}
+
+.question-detail-answer {
+  color: #1f2937;
+  font-weight: 700;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.question-detail-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .empty-editor {
