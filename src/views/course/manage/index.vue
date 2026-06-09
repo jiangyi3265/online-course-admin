@@ -192,8 +192,12 @@
       <el-tab-pane v-if="canPanel('docs')" label="资料管理" name="docs">
         <el-row class="toolbar-row">
           <el-button type="success" icon="Plus" @click="openDocDialog()">新增资料</el-button>
+          <el-select v-model="docQuery.courseId" clearable filterable placeholder="按所属科目筛选" class="toolbar-filter-select">
+            <el-option v-for="course in docCourseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
+          </el-select>
         </el-row>
-        <el-table :data="docList" border>
+        <el-table :data="filteredDocList" border>
+          <el-table-column type="index" label="序号" width="64" align="center" />
           <el-table-column prop="title" label="资料名称" min-width="220" show-overflow-tooltip />
           <el-table-column label="所属科目" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">{{ courseLabel(row.courseId) }}</template>
@@ -224,13 +228,22 @@
           <el-button type="success" icon="Plus" @click="openQuestionDialog()">新增题目</el-button>
         </el-row>
         <div class="question-stat-grid">
-          <div class="question-stat-chip" v-for="item in questionStatChips" :key="item.label">
+          <div
+            class="question-stat-chip"
+            v-for="item in questionStatChips"
+            :key="item.label"
+            :class="{ active: isQuestionChipActive(item) }"
+            role="button"
+            tabindex="0"
+            @click="setQuestionQuickFilter(item)"
+            @keyup.enter="setQuestionQuickFilter(item)"
+          >
             <span>{{ item.label }}</span>
             <strong>{{ item.value }}</strong>
           </div>
         </div>
         <el-table
-          :data="questionList"
+          :data="filteredQuestionList"
           border
           class="question-bank-table"
           height="520"
@@ -458,6 +471,18 @@
               />
             </el-tab-pane>
             <el-tab-pane label="操作记录" name="operations">
+              <div class="record-filter-row">
+                <el-date-picker
+                  v-model="operationQuery.dateRange"
+                  type="daterange"
+                  unlink-panels
+                  value-format="YYYY-MM-DD"
+                  range-separator="至"
+                  start-placeholder="开始日期"
+                  end-placeholder="结束日期"
+                />
+                <el-button icon="Refresh" @click="resetOperationQuery">重置</el-button>
+              </div>
               <el-table :data="pagedAdminOperationRecords" border class="record-compact-table">
                 <el-table-column label="操作信息" min-width="240">
                   <template #default="{ row }">
@@ -479,10 +504,10 @@
                 <el-table-column prop="time" label="时间" width="180" />
               </el-table>
               <pagination
-                v-show="adminOperationRecords.length > operationPager.pageSize"
+                v-show="filteredAdminOperationRecords.length > operationPager.pageSize"
                 v-model:page="operationPager.pageNum"
                 v-model:limit="operationPager.pageSize"
-                :total="adminOperationRecords.length"
+                :total="filteredAdminOperationRecords.length"
                 :page-sizes="[8, 12, 20, 50]"
                 layout="total, sizes, prev, pager, next"
                 :auto-scroll="false"
@@ -854,6 +879,18 @@
       <el-tab-pane v-if="canPanel('study')" label="后台记录查看" name="study">
         <el-card shadow="never" class="admin-block">
           <template #header>后台所有操作记录</template>
+          <div class="record-filter-row">
+            <el-date-picker
+              v-model="operationQuery.dateRange"
+              type="daterange"
+              unlink-panels
+              value-format="YYYY-MM-DD"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+            />
+            <el-button icon="Refresh" @click="resetOperationQuery">重置</el-button>
+          </div>
           <el-table :data="pagedAdminOperationRecords" border class="record-compact-table">
             <el-table-column label="操作信息" min-width="240">
               <template #default="{ row }">
@@ -875,10 +912,10 @@
             <el-table-column prop="time" label="时间" width="180" />
           </el-table>
           <pagination
-            v-show="adminOperationRecords.length > operationPager.pageSize"
+            v-show="filteredAdminOperationRecords.length > operationPager.pageSize"
             v-model:page="operationPager.pageNum"
             v-model:limit="operationPager.pageSize"
-            :total="adminOperationRecords.length"
+            :total="filteredAdminOperationRecords.length"
             :page-sizes="[8, 12, 20, 50]"
             layout="total, sizes, prev, pager, next"
             :auto-scroll="false"
@@ -1684,7 +1721,10 @@ const userStore = useUserStore()
 const loading = ref(false)
 const dashboard = reactive({})
 const courseQuery = reactive({ stage: '', kind: '' })
+const docQuery = reactive({ courseId: '' })
+const questionQuery = reactive({ subject: '', type: '' })
 const userQuery = reactive({ keyword: '', role: '', status: '', courseStatus: '' })
+const operationQuery = reactive({ dateRange: [] })
 const courseList = ref([])
 const courseOptionList = ref([])
 const docList = ref([])
@@ -1897,15 +1937,36 @@ const courseOptions = computed(() => (courseOptionList.value.length ? courseOpti
   optionLabel: `${cleanCourseName(course.courseName || course.title || course.id)}（${course.id}）`
 })))
 const fullCourseOptions = computed(() => courseOptions.value.filter(isFullCourseOption))
+const docCourseOptions = computed(() => fullCourseOptions.value.length ? fullCourseOptions.value : courseOptions.value)
+const filteredDocList = computed(() => {
+  const courseId = String(docQuery.courseId || '').trim()
+  if (!courseId) return docList.value
+  return docList.value.filter(doc => String(doc.courseId || '') === courseId)
+})
+const filteredQuestionList = computed(() => {
+  const subject = compactText(questionQuery.subject)
+  const type = String(questionQuery.type || '').trim()
+  return questionList.value.filter(question => {
+    const questionSubject = compactText(questionSubjectLabel(question))
+    const matchedSubject = !subject || questionSubject.includes(subject)
+    const matchedType = !type || normalizeQuestionType(question.questionType) === type
+    return matchedSubject && matchedType
+  })
+})
 const questionStatChips = computed(() => {
-  const list = [{ label: '总题目数', value: questionList.value.length }]
+  const list = [{ label: '总题目数', value: questionList.value.length, filterType: 'all', filterValue: '' }]
   questionTypeOptions.forEach(item => {
-    list.push({ label: `${item.label}数`, value: questionList.value.filter(question => normalizeQuestionType(question.questionType) === item.value).length })
+    list.push({
+      label: `${item.label}数`,
+      value: questionList.value.filter(question => normalizeQuestionType(question.questionType) === item.value).length,
+      filterType: 'type',
+      filterValue: item.value
+    })
   })
   questionSubjectStats.forEach(label => {
-    const normalized = label.replace(/\s/g, '')
+    const normalized = compactText(label)
     const value = questionList.value.filter(question => questionSubjectLabel(question).replace(/\s/g, '').includes(normalized)).length
-    list.push({ label: `${label}题数`, value })
+    list.push({ label: `${label}题数`, value, filterType: 'subject', filterValue: label })
   })
   return list
 })
@@ -1936,7 +1997,18 @@ const adminOperationRecords = computed(() => {
     time: log.time || ''
   })).sort((a, b) => String(b.time || '').localeCompare(String(a.time || '')))
 })
-const pagedAdminOperationRecords = computed(() => paginateRows(adminOperationRecords.value, operationPager))
+const filteredAdminOperationRecords = computed(() => {
+  const range = Array.isArray(operationQuery.dateRange) ? operationQuery.dateRange : []
+  const start = dateOnly(range[0])
+  const end = dateOnly(range[1])
+  return adminOperationRecords.value.filter(row => {
+    const day = dateOnly(row.time)
+    if (start && day < start) return false
+    if (end && day > end) return false
+    return true
+  })
+})
+const pagedAdminOperationRecords = computed(() => paginateRows(filteredAdminOperationRecords.value, operationPager))
 const selectedUserStatsTitle = computed(() => {
   if (!selectedUserStats.value) return ''
   return selectedUserStats.value.type === 'agency'
@@ -2009,6 +2081,37 @@ const questionProvinceOptions = computed(() => uniqueQuestionField('province'))
 function questionIndexMethod(index) {
   return index + 1
 }
+
+function setQuestionQuickFilter(item = {}) {
+  if (item.filterType === 'all') {
+    questionQuery.subject = ''
+    questionQuery.type = ''
+    return
+  }
+  if (item.filterType === 'subject') {
+    questionQuery.subject = item.filterValue || ''
+    questionQuery.type = ''
+    return
+  }
+  if (item.filterType === 'type') {
+    questionQuery.type = item.filterValue || ''
+    questionQuery.subject = ''
+  }
+}
+
+function isQuestionChipActive(item = {}) {
+  if (item.filterType === 'all') {
+    return !questionQuery.subject && !questionQuery.type
+  }
+  if (item.filterType === 'subject') {
+    return compactText(questionQuery.subject) === compactText(item.filterValue)
+  }
+  if (item.filterType === 'type') {
+    return questionQuery.type === item.filterValue
+  }
+  return false
+}
+
 const filteredQuestionOptions = computed(() => {
   const keyword = questionPickerKeyword.value.trim().toLowerCase()
   const subject = String(questionPickerSubject.value || '').replace(/\s/g, '')
@@ -2061,6 +2164,7 @@ watch(visiblePanelNames, (names) => {
 }, { immediate: true })
 
 watch([() => activationQuery.keyword, () => activationQuery.status, () => activationQuery.owner], () => resetPager(activationPager))
+watch([() => operationQuery.dateRange?.[0], () => operationQuery.dateRange?.[1]], () => resetPager(operationPager))
 watch(selectedAgencyDetailStatus, () => resetPager(agencyCodePager))
 watch(orderRecordTab, () => {
   resetPager(orderPager)
@@ -2350,6 +2454,11 @@ function resetCourseQuery() {
   courseQuery.stage = ''
   courseQuery.kind = ''
   loadCourses()
+}
+
+function resetOperationQuery() {
+  operationQuery.dateRange = []
+  resetPager(operationPager)
 }
 
 function resetUserQuery() {
@@ -2704,6 +2813,30 @@ function coursePayloadForSave() {
   return payload
 }
 
+function exactName(value = '') {
+  return String(value || '').trim()
+}
+
+function hasDuplicateCourseName(payload = {}) {
+  const name = exactName(payload.courseName || payload.title)
+  if (!name) return false
+  const currentId = String(payload.id || editingCourseId.value || '')
+  return courseList.value.some(course => {
+    const courseId = String(course.id || '')
+    return courseId !== currentId && exactName(course.courseName || course.title) === name
+  })
+}
+
+function hasDuplicateDocName(payload = {}) {
+  const name = exactName(payload.title)
+  if (!name) return false
+  const currentId = String(payload.id || '')
+  return docList.value.some(doc => {
+    const docId = String(doc.id || '')
+    return docId !== currentId && exactName(doc.title) === name
+  })
+}
+
 function userById(userId) {
   return userList.value.find(user => String(user.id || '') === String(userId || ''))
 }
@@ -2783,6 +2916,10 @@ async function submitCourse() {
   if (!payload.id && editingCourseId.value) {
     payload.id = editingCourseId.value
   }
+  if (hasDuplicateCourseName(payload)) {
+    ElMessage.warning('课程名称不能和已有课程完全相同')
+    return
+  }
   if (editingCourseId.value) {
     await updateCourse(editingCourseId.value, payload)
   } else {
@@ -2808,6 +2945,10 @@ function openDocDialog(row) {
 async function submitDoc() {
   if (!docForm.courseId) {
     ElMessage.warning('请选择资料所属科目')
+    return
+  }
+  if (hasDuplicateDocName(docForm)) {
+    ElMessage.warning('资料名称不能和已有资料完全相同')
     return
   }
   await saveDoc({ ...docForm })
@@ -3566,6 +3707,10 @@ function cleanCourseName(value = '') {
   return String(value).replace(/[《》]/g, '').replace(/20\d{2}/g, '').replace(/试听课/g, '').trim() || '未命名课程'
 }
 
+function compactText(value = '') {
+  return String(value || '').replace(/\s/g, '')
+}
+
 function courseTitle(course = {}) {
   return course.courseTitle || course.title || course.courseName || course.courseId || course.id || '未命名课程'
 }
@@ -3814,7 +3959,15 @@ function defaultSubAccountForm() {
 }
 
 .toolbar-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 12px;
+}
+
+.toolbar-filter-select {
+  width: min(360px, 100%);
 }
 
 .user-filter {
@@ -3863,6 +4016,14 @@ function defaultSubAccountForm() {
 
 .record-compact-table {
   width: 100%;
+}
+
+.record-filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .record-compact-table :deep(.el-table__cell) {
@@ -3969,6 +4130,14 @@ function defaultSubAccountForm() {
   border-radius: 8px;
   background: #f8fafc;
   border: 1px solid #e7eaf0;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.question-stat-chip.active {
+  border-color: #409eff;
+  background: #ecf5ff;
+  box-shadow: inset 0 0 0 1px rgba(64, 158, 255, 0.14);
 }
 
 .question-stat-chip span {
