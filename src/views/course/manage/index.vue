@@ -1202,22 +1202,26 @@
           <el-radio-group v-model="questionForm.questionType" class="question-type-group">
             <el-radio-button v-for="item in questionTypeOptions" :key="item.value" :label="item.value">{{ item.label }}</el-radio-button>
           </el-radio-group>
-          <div class="field-hint">可填：选择题、填空题、主观题、阅读理解类题；公式用 $x^2$ 或 $$x^2$$，下划线用 __文字__。</div>
+          <div class="field-hint">可填：选择题、填空题、主观题、阅读理解类题；公式示例 $f(x)=\ln(1+x)-\frac{2x}{x+2}$，先选中文字再点“下划线”即可标注。</div>
         </el-form-item>
         <el-form-item label="题干">
           <div class="question-media-editor">
             <div class="question-media-pane">
               <div class="pane-label">{{ questionForm.questionType === 'reading' ? '阅读题干（大题干 / 阅读材料）' : '文字题干' }}</div>
               <div class="markup-toolbar">
-                <el-button size="small" icon="EditPen" @click="insertQuestionMarkup('stem', 'inlineMath')">行内公式</el-button>
-                <el-button size="small" icon="Collection" @click="insertQuestionMarkup('stem', 'displayMath')">独立公式</el-button>
-                <el-button size="small" icon="Minus" @click="insertQuestionMarkup('stem', 'underline')">下划线</el-button>
+                <el-button size="small" icon="EditPen" @mousedown.prevent="insertQuestionMarkup('stem', 'inlineMath')">行内公式</el-button>
+                <el-button size="small" icon="Collection" @mousedown.prevent="insertQuestionMarkup('stem', 'displayMath')">独立公式</el-button>
+                <el-button size="small" icon="Minus" @mousedown.prevent="insertQuestionMarkup('stem', 'underline')">下划线</el-button>
               </div>
               <el-input
                 v-model="questionForm.stem"
                 type="textarea"
                 :rows="questionForm.questionType === 'reading' ? 6 : 4"
                 :placeholder="questionForm.questionType === 'reading' ? '输入阅读材料或大题干，下面可继续添加多个问题和选项' : '输入题干文字，支持 LaTeX 公式和 __下划线文字__'"
+                @select="rememberMarkupSelection(markupFieldKey('stem'), $event)"
+                @mouseup="rememberMarkupSelection(markupFieldKey('stem'), $event)"
+                @keyup="rememberMarkupSelection(markupFieldKey('stem'), $event)"
+                @focus="rememberMarkupSelection(markupFieldKey('stem'), $event)"
               />
               <div v-if="questionForm.stem" class="math-preview" v-html="mathHtml(questionForm.stem)"></div>
             </div>
@@ -1239,10 +1243,19 @@
               <div class="question-media-pane">
                 <div class="pane-label">文字选项</div>
                 <div class="markup-toolbar">
-                  <el-button size="small" icon="EditPen" @click="insertQuestionMarkup('optionsText', 'inlineMath')">行内公式</el-button>
-                  <el-button size="small" icon="Minus" @click="insertQuestionMarkup('optionsText', 'underline')">下划线</el-button>
+                  <el-button size="small" icon="EditPen" @mousedown.prevent="insertQuestionMarkup('optionsText', 'inlineMath')">行内公式</el-button>
+                  <el-button size="small" icon="Minus" @mousedown.prevent="insertQuestionMarkup('optionsText', 'underline')">下划线</el-button>
                 </div>
-                <el-input v-model="questionForm.optionsText" type="textarea" :rows="4" placeholder="每行一个选项；如只有图片，可留空并按顺序上传图片" />
+                <el-input
+                  v-model="questionForm.optionsText"
+                  type="textarea"
+                  :rows="4"
+                  placeholder="每行一个选项；如只有图片，可留空并按顺序上传图片"
+                  @select="rememberMarkupSelection(markupFieldKey('optionsText'), $event)"
+                  @mouseup="rememberMarkupSelection(markupFieldKey('optionsText'), $event)"
+                  @keyup="rememberMarkupSelection(markupFieldKey('optionsText'), $event)"
+                  @focus="rememberMarkupSelection(markupFieldKey('optionsText'), $event)"
+                />
                 <div v-if="questionForm.optionsText" class="math-preview" v-html="mathHtml(questionForm.optionsText)"></div>
               </div>
               <div class="question-media-pane upload-pane">
@@ -1277,25 +1290,46 @@
                       <el-option label="填空题" value="fill" />
                       <el-option label="主观题" value="subjective" />
                     </el-select>
-                    <el-input-number v-if="sub.questionType === 'choice'" v-model="sub.answer" :min="1" controls-position="right" class="reading-answer-input" />
                     <el-button link type="danger" icon="Delete" @click="removeReadingSubQuestion(subIndex)">删除</el-button>
                   </div>
                 </div>
                 <div class="pane-label">问题 {{ subIndex + 1 }} 题干</div>
                 <div class="markup-toolbar">
-                  <el-button size="small" icon="EditPen" @click="insertSubQuestionMarkup(sub, 'stem', 'inlineMath')">行内公式</el-button>
-                  <el-button size="small" icon="Minus" @click="insertSubQuestionMarkup(sub, 'stem', 'underline')">下划线</el-button>
+                  <el-button size="small" icon="EditPen" @mousedown.prevent="insertSubQuestionMarkup(sub, 'stem', 'inlineMath')">行内公式</el-button>
+                  <el-button size="small" icon="Minus" @mousedown.prevent="insertSubQuestionMarkup(sub, 'stem', 'underline')">下划线</el-button>
                 </div>
-                <el-input v-model="sub.stem" type="textarea" :rows="2" placeholder="输入小题问题" />
+                <el-input
+                  v-model="sub.stem"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="输入小题问题"
+                  @select="rememberMarkupSelection(subMarkupFieldKey(sub, 'stem'), $event)"
+                  @mouseup="rememberMarkupSelection(subMarkupFieldKey(sub, 'stem'), $event)"
+                  @keyup="rememberMarkupSelection(subMarkupFieldKey(sub, 'stem'), $event)"
+                  @focus="rememberMarkupSelection(subMarkupFieldKey(sub, 'stem'), $event)"
+                />
                 <div v-if="sub.stem" class="math-preview compact" v-html="mathHtml(sub.stem)"></div>
                 <template v-if="sub.questionType === 'choice'">
                   <div class="pane-label file-pane-label">问题 {{ subIndex + 1 }} 选项</div>
                   <div class="markup-toolbar">
-                    <el-button size="small" icon="EditPen" @click="insertSubQuestionMarkup(sub, 'optionsText', 'inlineMath')">行内公式</el-button>
-                    <el-button size="small" icon="Minus" @click="insertSubQuestionMarkup(sub, 'optionsText', 'underline')">下划线</el-button>
+                    <el-button size="small" icon="EditPen" @mousedown.prevent="insertSubQuestionMarkup(sub, 'optionsText', 'inlineMath')">行内公式</el-button>
+                    <el-button size="small" icon="Minus" @mousedown.prevent="insertSubQuestionMarkup(sub, 'optionsText', 'underline')">下划线</el-button>
                   </div>
-                  <el-input v-model="sub.optionsText" type="textarea" :rows="3" placeholder="每行一个选项，例如 A/B/C/D 对应 4 行" />
-                  <div class="field-hint">答案序号从 1 开始：1=A，2=B，3=C。</div>
+                  <el-input
+                    v-model="sub.optionsText"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="每行一个选项，例如 A/B/C/D 对应 4 行"
+                    @select="rememberMarkupSelection(subMarkupFieldKey(sub, 'optionsText'), $event)"
+                    @mouseup="rememberMarkupSelection(subMarkupFieldKey(sub, 'optionsText'), $event)"
+                    @keyup="rememberMarkupSelection(subMarkupFieldKey(sub, 'optionsText'), $event)"
+                    @focus="rememberMarkupSelection(subMarkupFieldKey(sub, 'optionsText'), $event)"
+                  />
+                  <div class="reading-answer-row">
+                    <span class="reading-answer-label">参考答案选项</span>
+                    <el-input-number v-model="sub.answer" :min="1" controls-position="right" class="reading-answer-input" />
+                    <span class="field-hint">答案序号从 1 开始：1=A，2=B，3=C。</span>
+                  </div>
                   <div v-if="sub.optionsText" class="math-preview compact" v-html="mathHtml(sub.optionsText)"></div>
                 </template>
                 <template v-else>
@@ -1401,35 +1435,38 @@
       </div>
       <el-checkbox-group v-model="selectedQuestionIds" class="question-picker-list">
         <div v-for="question in filteredQuestionOptions" :key="question.id" class="question-option-row">
-          <el-checkbox :label="question.id">
-            <span class="question-option-stem math-rich-preview" v-html="mathHtml(question.stem || (stemImageList(question).length ? '图片题干' : '未填写题干'))"></span>
+          <el-checkbox :label="question.id" class="question-option-checkbox">
+            <span>选择</span>
           </el-checkbox>
-          <audio v-if="stemAudioUrl(question)" class="question-audio-player question-picker-audio" :src="stemAudioUrl(question)" controls preload="metadata"></audio>
-          <div v-if="stemImageList(question).length || optionImageList(question).length" class="question-option-images">
-            <el-image
-              v-if="stemImageList(question).length"
-              class="question-picker-thumb"
-              :src="stemImageList(question)[0]"
-              fit="cover"
-              :preview-src-list="stemImageList(question)"
-              preview-teleported
-            />
-            <el-image
-              v-for="(url, index) in optionImageList(question)"
-              :key="`${url}-${index}`"
-              class="question-picker-thumb"
-              :src="url"
-              fit="cover"
-              :preview-src-list="optionImageList(question)"
-              :initial-index="index"
-              preview-teleported
-            />
-          </div>
-          <div class="question-option-meta">
-            <el-tag size="small" :type="questionTypeTag(question)">{{ questionTypeLabel(question.questionType) }}</el-tag>
-            <el-tag v-if="questionSubjectLabel(question) !== '-'" size="small" type="success">{{ questionSubjectLabel(question) }}</el-tag>
-            <el-tag v-if="question.knowledge" size="small">{{ question.knowledge }}</el-tag>
-            <el-tag v-if="question.province" size="small" type="info">{{ question.province }}</el-tag>
+          <div class="question-option-main">
+            <div class="question-option-stem math-rich-preview" v-html="mathHtml(questionPickerStem(question))"></div>
+            <audio v-if="stemAudioUrl(question)" class="question-audio-player question-picker-audio" :src="stemAudioUrl(question)" controls preload="metadata"></audio>
+            <div v-if="stemImageList(question).length || optionImageList(question).length" class="question-option-images">
+              <el-image
+                v-if="stemImageList(question).length"
+                class="question-picker-thumb"
+                :src="stemImageList(question)[0]"
+                fit="cover"
+                :preview-src-list="stemImageList(question)"
+                preview-teleported
+              />
+              <el-image
+                v-for="(url, index) in optionImageList(question)"
+                :key="`${url}-${index}`"
+                class="question-picker-thumb"
+                :src="url"
+                fit="cover"
+                :preview-src-list="optionImageList(question)"
+                :initial-index="index"
+                preview-teleported
+              />
+            </div>
+            <div class="question-option-meta">
+              <el-tag size="small" :type="questionTypeTag(question)">{{ questionTypeLabel(question.questionType) }}</el-tag>
+              <el-tag v-if="questionSubjectLabel(question) !== '-'" size="small" type="success">{{ questionSubjectLabel(question) }}</el-tag>
+              <el-tag v-if="question.knowledge" size="small">{{ question.knowledge }}</el-tag>
+              <el-tag v-if="question.province" size="small" type="info">{{ question.province }}</el-tag>
+            </div>
           </div>
         </div>
       </el-checkbox-group>
@@ -1624,6 +1661,7 @@ const questionPickerType = ref('')
 const questionPickerKnowledge = ref('')
 const questionPickerProvince = ref('')
 const selectedQuestionIds = ref([])
+const markupSelections = reactive({})
 const contentModes = [
   { label: '章节扫雷', value: 'chapterQuiz', buttonLabel: '添加章节扫雷内容' },
   { label: '复习加强课', value: 'review' },
@@ -2684,24 +2722,76 @@ async function removeDoc(row) {
 }
 
 function markupSnippet(type) {
-  if (type === 'displayMath') return '\n$$\nx^2+1\n$$'
+  if (type === 'displayMath') return '\n$$\n\\frac{2x}{x+2}\n$$'
   if (type === 'underline') return '__需要下划线的文字__'
-  return '$x^2$'
+  return '$\\frac{2x}{x+2}$'
 }
 
-function appendMarkupValue(value = '', type = 'inlineMath') {
+function markupFieldKey(field) {
+  return `question:${field}`
+}
+
+function subMarkupFieldKey(sub = {}, field = '') {
+  return `sub:${sub.uid || sub.id || 'new'}:${field}`
+}
+
+function rememberMarkupSelection(key, event) {
+  const target = event && event.target
+  if (!key || !target || typeof target.selectionStart !== 'number') return
+  markupSelections[key] = {
+    start: target.selectionStart,
+    end: target.selectionEnd
+  }
+}
+
+function normalizeSelection(selection, length) {
+  if (!selection) return { start: length, end: length }
+  const start = Math.max(0, Math.min(Number(selection.start) || 0, length))
+  const end = Math.max(start, Math.min(Number(selection.end) || start, length))
+  return { start, end }
+}
+
+function currentTextSelection(key, value = '') {
+  const textLength = String(value || '').length
+  const active = typeof document !== 'undefined' ? document.activeElement : null
+  if (active && /^(TEXTAREA|INPUT)$/.test(active.tagName || '') && typeof active.selectionStart === 'number') {
+    return normalizeSelection({ start: active.selectionStart, end: active.selectionEnd }, textLength)
+  }
+  return normalizeSelection(markupSelections[key], textLength)
+}
+
+function wrapMarkupValue(selected = '', type = 'inlineMath') {
+  if (!selected) return markupSnippet(type)
+  if (type === 'displayMath') return `\n$$\n${selected}\n$$`
+  if (type === 'underline') return `__${selected}__`
+  return `$${selected}$`
+}
+
+function insertMarkupValue(value = '', type = 'inlineMath', key = '') {
   const text = String(value || '')
-  const prefix = text && !/[\s\n]$/.test(text) ? ' ' : ''
-  return `${text}${prefix}${markupSnippet(type)}`
+  const selection = currentTextSelection(key, text)
+  const selected = text.slice(selection.start, selection.end)
+  let inserted = wrapMarkupValue(selected, type)
+  if (!selected && selection.start === text.length && text && !/[\s\n]$/.test(text) && !inserted.startsWith('\n')) {
+    inserted = ` ${inserted}`
+  }
+  const nextValue = `${text.slice(0, selection.start)}${inserted}${text.slice(selection.end)}`
+  markupSelections[key] = {
+    start: selection.start + inserted.length,
+    end: selection.start + inserted.length
+  }
+  return nextValue
 }
 
 function insertQuestionMarkup(field, type) {
-  questionForm[field] = appendMarkupValue(questionForm[field], type)
+  const key = markupFieldKey(field)
+  questionForm[field] = insertMarkupValue(questionForm[field], type, key)
 }
 
 function insertSubQuestionMarkup(sub, field, type) {
   if (!sub) return
-  sub[field] = appendMarkupValue(sub[field], type)
+  const key = subMarkupFieldKey(sub, field)
+  sub[field] = insertMarkupValue(sub[field], type, key)
 }
 
 function addReadingSubQuestion() {
@@ -3154,6 +3244,22 @@ function questionContentSummary(row = {}) {
 
 function mathHtml(value = '', fallback = '') {
   return renderMath(value, fallback)
+}
+
+function plainQuestionText(value = '') {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function questionPickerStem(row = {}) {
+  const stem = plainQuestionText(row.stem)
+  if (normalizeQuestionType(row.questionType) === 'reading') {
+    const count = Array.isArray(row.subQuestions) ? row.subQuestions.length : 0
+    const preview = stem || (stemImageList(row).length ? '图片阅读材料' : '未填写阅读材料')
+    return `${preview}\n（阅读理解类题，${count || 0} 个小题）`
+  }
+  return stem || (stemImageList(row).length ? '图片题干' : '未填写题干')
 }
 
 function questionAnswerLabel(row = {}) {
@@ -4403,11 +4509,25 @@ function defaultSubAccountForm() {
 }
 
 .reading-sub-type {
-  width: 116px;
+  width: 128px;
+}
+
+.reading-answer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .reading-answer-input {
   width: 128px;
+}
+
+.reading-answer-label {
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .reading-add-question-btn {
@@ -4524,31 +4644,50 @@ function defaultSubAccountForm() {
 }
 
 .question-option-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
   padding: 12px;
   border: 1px solid #e5eaf2;
   border-radius: 8px;
   background: #f8fafc;
 }
 
+.question-option-checkbox {
+  align-self: start;
+  padding-top: 7px;
+}
+
+.question-option-main {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
 .question-option-stem {
-  display: inline-block;
-  max-width: 640px;
+  display: block;
+  max-width: 100%;
+  max-height: 128px;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid #e8edf5;
+  border-radius: 6px;
+  background: #fff;
   color: #1f2937;
-  line-height: 1.45;
+  line-height: 1.55;
   white-space: normal;
 }
 
 .question-option-images {
-  margin-top: 8px;
-  padding-left: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .question-option-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
-  padding-left: 24px;
 }
 
 .empty-editor {
