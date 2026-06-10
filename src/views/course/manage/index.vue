@@ -195,6 +195,10 @@
           <el-select v-model="docQuery.courseId" clearable filterable placeholder="按所属科目筛选" class="toolbar-filter-select">
             <el-option v-for="course in docCourseOptions" :key="course.id" :label="course.optionLabel" :value="course.id" />
           </el-select>
+          <el-select v-model="docQuery.category" clearable placeholder="资料/试卷" class="toolbar-filter-select narrow">
+            <el-option label="资料" value="lecture" />
+            <el-option label="试卷" value="paper" />
+          </el-select>
         </el-row>
         <el-table :data="filteredDocList" border>
           <el-table-column type="index" label="序号" width="64" align="center" />
@@ -1721,7 +1725,7 @@ const userStore = useUserStore()
 const loading = ref(false)
 const dashboard = reactive({})
 const courseQuery = reactive({ stage: '', kind: '' })
-const docQuery = reactive({ courseId: '' })
+const docQuery = reactive({ courseId: '', category: '' })
 const questionQuery = reactive({ subject: '', type: '' })
 const userQuery = reactive({ keyword: '', role: '', status: '', courseStatus: '' })
 const operationQuery = reactive({ dateRange: [] })
@@ -1940,8 +1944,12 @@ const fullCourseOptions = computed(() => courseOptions.value.filter(isFullCourse
 const docCourseOptions = computed(() => fullCourseOptions.value.length ? fullCourseOptions.value : courseOptions.value)
 const filteredDocList = computed(() => {
   const courseId = String(docQuery.courseId || '').trim()
-  if (!courseId) return docList.value
-  return docList.value.filter(doc => String(doc.courseId || '') === courseId)
+  const category = String(docQuery.category || '').trim()
+  return docList.value.filter(doc => {
+    const matchedCourse = !courseId || String(doc.courseId || '') === courseId
+    const matchedCategory = !category || String(doc.category || 'lecture') === category
+    return matchedCourse && matchedCategory
+  })
 })
 const filteredQuestionList = computed(() => {
   const subject = compactText(questionQuery.subject)
@@ -3968,6 +3976,10 @@ function defaultSubAccountForm() {
 
 .toolbar-filter-select {
   width: min(360px, 100%);
+}
+
+.toolbar-filter-select.narrow {
+  width: 180px;
 }
 
 .user-filter {
