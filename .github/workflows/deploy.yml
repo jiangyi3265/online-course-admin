@@ -82,7 +82,7 @@ jobs:
           echo "Inspecting wkht nginx roots..."
           retry 3 timeout 60s ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "grep -R -n -E 'server_name|root|listen .*443|ssl_certificate' /www/server/panel/vhost/nginx /etc/nginx 2>/dev/null | grep -C 3 'wkht.oksja.cn' || true"
           echo "Checking wkht content served locally..."
-          retry 3 timeout 60s ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "set -e; echo 'DEPLOY_PATH index:'; ls -l '$DEPLOY_PATH/index.html'; grep -oE '(static|assets)/[^\"'\'']+' '$DEPLOY_PATH/index.html' | head -10 || true; echo 'HTTP localhost:'; curl -s -H 'Host: wkht.oksja.cn' http://127.0.0.1/ | grep -oE '(static|assets)/[^\"'\'']+' | head -10 || true; echo 'HTTPS localhost:'; curl -ks --resolve wkht.oksja.cn:443:127.0.0.1 https://wkht.oksja.cn/ | grep -oE '(static|assets)/[^\"'\'']+' | head -10 || true; echo 'Old wkht index locations:'; grep -Rsl 'index-R1nsTbLx\|index-zlBNNc_e' /www/wwwroot /www/server 2>/dev/null | head -20 || true"
+          retry 3 timeout 60s ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "set -e; echo 'DEPLOY_PATH index:'; ls -l '$DEPLOY_PATH/index.html'; grep -oE '(static|assets)/[^\"'\'']+' '$DEPLOY_PATH/index.html' | head -10 || true; echo 'HTTP localhost:'; curl -s -H 'Host: wkht.oksja.cn' http://127.0.0.1/ | grep -oE '(static|assets)/[^\"'\'']+' | head -10 || true; echo 'HTTPS localhost:'; curl -ks --resolve wkht.oksja.cn:443:127.0.0.1 https://wkht.oksja.cn/ | grep -oE '(static|assets)/[^\"'\'']+' | head -10 || true"
           echo "Ensuring wkht HTTPS vhost points to admin root..."
           ssh $SSH_OPTS "$DEPLOY_USER@$DEPLOY_HOST" "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
           set -euo pipefail
