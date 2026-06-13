@@ -1151,6 +1151,7 @@
               >
                 <el-input-number v-model="chapter.sort" :min="1" controls-position="right" class="chapter-sort" />
                 <el-input v-model="chapter.title" placeholder="输入章节名字" />
+                <el-switch v-model="chapter.visible" inline-prompt active-text="显示" inactive-text="隐藏" class="visibility-switch" />
                 <el-tooltip content="删除章节" placement="top">
                   <el-button text type="danger" icon="Delete" @click.stop="removeCourseChapter(index)" />
                 </el-tooltip>
@@ -1171,12 +1172,17 @@
                 <div v-for="(lesson, index) in activeLessons" :key="index" class="lesson-row">
                   <el-input v-model="lesson.title" placeholder="输入章节内容名称" class="lesson-title-input" />
                   <el-input-number v-model="lesson.sort" :min="1" controls-position="right" placeholder="排序" class="lesson-sort-input" />
-                  <file-upload v-model="lesson.videoUrl" :limit="1" :file-size="1024" :file-type="['mp4', 'mov', 'm4v', 'webm']" />
+                  <el-switch v-model="lesson.visible" inline-prompt active-text="显示" inactive-text="隐藏" class="visibility-switch" />
+                  <div class="lesson-video-cell">
+                    <file-upload v-model="lesson.videoUrl" :limit="1" :file-size="1024" :file-type="['mp4', 'mov', 'm4v', 'webm']" />
+                    <el-switch v-model="lesson.children[0].visible" inline-prompt active-text="显示" inactive-text="隐藏" class="child-visible-switch" />
+                  </div>
                   <div class="lesson-question-cell">
                     <el-input v-model="lesson.questionBankName" placeholder="输入题库名称" class="question-bank-input" />
                     <div class="lesson-question-actions">
                       <el-button type="primary" plain @click="openQuestionPicker('lesson', lesson)">选择题库题目</el-button>
                       <el-tag v-if="questionCount(lesson)" type="info">已选 {{ questionCount(lesson) }} 题</el-tag>
+                      <el-switch v-model="lesson.children[1].visible" inline-prompt active-text="显示" inactive-text="隐藏" class="child-visible-switch" />
                     </div>
                   </div>
                   <el-tooltip content="删除此节内容" placement="top">
@@ -1201,6 +1207,7 @@
               <el-input v-model="quiz.name" placeholder="输入题库名称" />
               <el-input v-model="quiz.status" placeholder="显示状态，如：未学习" />
               <el-input v-model="quiz.action" placeholder="按钮文案，如：去测评" />
+              <el-switch v-model="quiz.visible" inline-prompt active-text="显示" inactive-text="隐藏" class="visibility-switch" />
               <div class="quiz-question-cell">
                 <el-button type="primary" plain @click="openQuestionPicker('quiz', quiz)">选择题库题目</el-button>
                 <el-tag v-if="questionCount(quiz)" type="info">已选 {{ questionCount(quiz) }} 题</el-tag>
@@ -2564,20 +2571,26 @@ function normalizeCourseFormContent() {
     version.chapters.forEach((chapter, chapterIndex) => {
       if (!chapter.title) chapter.title = `第${chapterIndex + 1}章`
       if (!chapter.sort) chapter.sort = chapterIndex + 1
+      ensureVisibleFlag(chapter)
       chapter.open = !!chapter.open
       if (!Array.isArray(chapter.items)) chapter.items = []
       chapter.items.forEach((lesson, lessonIndex) => {
         const labels = lessonChildLabels(versionIndex === 1 ? 'tactics' : (versionIndex === 2 ? 'knowledge' : 'review'))
         if (!lesson.title) lesson.title = `章节内容${lessonIndex + 1}`
         if (!lesson.sort) lesson.sort = lessonIndex + 1
+        ensureVisibleFlag(lesson)
         lesson.open = !!lesson.open
         if (!Array.isArray(lesson.questionIds)) lesson.questionIds = []
         if (!Array.isArray(lesson.children)) lesson.children = []
         if (!lesson.children[0]) lesson.children[0] = { name: labels.video, type: 1, total: 1, read: 0 }
         if (!lesson.children[1]) lesson.children[1] = { name: labels.practice, type: 2, total: 0, read: 0 }
+        ensureVisibleFlag(lesson.children[0])
+        ensureVisibleFlag(lesson.children[1])
         if (!lesson.children[0].name) lesson.children[0].name = labels.video
         if (!lesson.children[1].name) lesson.children[1].name = labels.practice
-        if (lesson.videoUrl) lesson.children[0].videoUrl = lesson.videoUrl
+        if (!hasOwnField(lesson, 'videoUrl')) lesson.videoUrl = lesson.children[0].videoUrl || ''
+        if (!hasOwnField(lesson, 'questionBankName')) lesson.questionBankName = lesson.children[1].questionBankName || ''
+        lesson.children[0].videoUrl = lesson.videoUrl || ''
         lesson.children[1].questionBankName = lesson.questionBankName || lesson.children[1].questionBankName || ''
         lesson.children[1].questionIds = lesson.questionIds
         lesson.children[1].total = lesson.questionIds.length || lesson.children[1].total || 0
@@ -2587,6 +2600,14 @@ function normalizeCourseFormContent() {
     version.chapters.sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0))
   })
   courseForm.chapters = courseForm.versions[0].chapters
+}
+
+function hasOwnField(target, field) {
+  return Object.prototype.hasOwnProperty.call(target || {}, field)
+}
+
+function ensureVisibleFlag(target = {}) {
+  if (!hasOwnField(target, 'visible')) target.visible = true
 }
 
 function switchContentMode(mode) {
@@ -2600,6 +2621,7 @@ function switchContentMode(mode) {
 function normalizeQuizList(list = []) {
   list.forEach(quiz => {
     if (!Array.isArray(quiz.questionIds)) quiz.questionIds = []
+    ensureVisibleFlag(quiz)
     if (!quiz.status) quiz.status = '未学习'
     if (!quiz.action) quiz.action = '去测评'
   })
@@ -2608,7 +2630,7 @@ function normalizeQuizList(list = []) {
 function addCourseChapter() {
   const version = ensureCourseVersion(activeVersionIndex.value)
   const next = version.chapters.length + 1
-  version.chapters.push({ title: `新建章节${next}`, sort: next, open: true, items: [] })
+  version.chapters.push({ title: `新建章节${next}`, sort: next, open: true, visible: true, items: [] })
   activeChapterIndex.value = version.chapters.length - 1
 }
 
@@ -2630,13 +2652,14 @@ function addCourseLesson() {
     title: '',
     sort: next,
     open: false,
+    visible: true,
     videoUrl: '',
     questionBankName: '',
     questionIds: [],
     durationMinutes: 0,
     children: [
-      { name: labels.video, type: 1, total: 1, read: 0 },
-      { name: labels.practice, type: 2, total: 0, read: 0 }
+      { name: labels.video, type: 1, total: 1, read: 0, visible: true },
+      { name: labels.practice, type: 2, total: 0, read: 0, visible: true }
     ]
   })
 }
@@ -2655,7 +2678,7 @@ async function removeCourseLesson(index) {
 }
 
 function addCourseQuiz() {
-  activeQuizList.value.push({ name: '', status: '未学习', action: '去测评', questionIds: [] })
+  activeQuizList.value.push({ name: '', status: '未学习', action: '去测评', questionIds: [], visible: true })
 }
 
 async function removeCourseQuiz(index) {
@@ -4675,7 +4698,7 @@ function defaultSubAccountForm() {
 
 .chapter-card {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 32px;
+  grid-template-columns: 72px minmax(0, 1fr) 74px 32px;
   align-items: center;
   gap: 8px;
   padding: 10px;
@@ -4701,7 +4724,7 @@ function defaultSubAccountForm() {
 .lesson-row,
 .quiz-edit-row {
   display: grid;
-  grid-template-columns: minmax(160px, 1.15fr) 96px minmax(170px, 1fr) minmax(190px, 1fr) 34px;
+  grid-template-columns: minmax(150px, 1.05fr) 96px 74px minmax(190px, 1.1fr) minmax(220px, 1.15fr) 34px;
   align-items: center;
   gap: 10px;
   padding: 12px;
@@ -4717,6 +4740,18 @@ function defaultSubAccountForm() {
 
 .lesson-sort-input {
   width: 96px;
+}
+
+.visibility-switch,
+.child-visible-switch {
+  justify-self: center;
+}
+
+.lesson-video-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 74px;
+  align-items: center;
+  gap: 8px;
 }
 
 .lesson-question-cell,
@@ -5137,6 +5172,10 @@ function defaultSubAccountForm() {
 
   .lesson-row,
   .quiz-edit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-video-cell {
     grid-template-columns: 1fr;
   }
 
