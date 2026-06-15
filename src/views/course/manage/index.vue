@@ -174,7 +174,13 @@
               <el-tag :type="row.kind === 'full' ? 'success' : 'info'">{{ row.kind === 'full' ? '卡密开通' : '试听免费' }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="studyCount" label="学习人数" width="100" />
+          <el-table-column label="学习人数" width="116" align="center">
+            <template #default="{ row }">
+              <el-button class="study-count-link" link type="primary" @click="openStudyCountDialog(row)">
+                {{ Number(row.studyCount || 0) }}
+              </el-button>
+            </template>
+          </el-table-column>
           <el-table-column prop="status" label="状态" width="100">
             <template #default="{ row }">
               <el-tag :type="row.status === 'published' ? 'primary' : 'warning'">{{ row.status === 'published' ? '已发布' : '草稿' }}</el-tag>
@@ -1112,7 +1118,8 @@
             </el-col>
             <el-col :span="6"><el-form-item label="排序"><el-input-number v-model="courseForm.sort" :min="0" style="width: 100%" /></el-form-item></el-col>
             <el-col :span="6"><el-form-item label="课程节数"><el-input-number :model-value="computedLessonTotal" :min="0" disabled style="width: 100%" /></el-form-item></el-col>
-            <el-col :span="12"><el-form-item label="状态"><el-switch v-model="courseForm.status" active-value="published" inactive-value="draft" active-text="发布" inactive-text="草稿" /></el-form-item></el-col>
+            <el-col :span="6"><el-form-item label="学习人数"><el-input-number v-model="courseForm.studyCount" :min="0" :precision="0" style="width: 100%" /></el-form-item></el-col>
+            <el-col :span="6"><el-form-item label="状态"><el-switch v-model="courseForm.status" active-value="published" inactive-value="draft" active-text="发布" inactive-text="草稿" /></el-form-item></el-col>
             <el-col :span="24"><el-form-item label="简介"><el-input v-model="courseForm.introduction" type="textarea" :rows="3" /></el-form-item></el-col>
           </el-row>
         </div>
@@ -1681,6 +1688,21 @@
         <el-button type="primary" @click="submitActivationAssign">确认分配</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="studyCountOpen" title="修改学习人数" width="420px" append-to-body>
+      <el-form :model="studyCountForm" label-width="88px">
+        <el-form-item label="课程">
+          <div class="study-count-course-name">{{ studyCountForm.courseName || studyCountForm.id }}</div>
+        </el-form-item>
+        <el-form-item label="学习人数">
+          <el-input-number v-model="studyCountForm.studyCount" :min="0" :precision="0" controls-position="right" style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="studyCountOpen = false">取消</el-button>
+        <el-button type="primary" :loading="studyCountSaving" @click="submitStudyCount">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -1764,6 +1786,7 @@ const courseOpen = ref(false)
 const docOpen = ref(false)
 const questionOpen = ref(false)
 const userEditOpen = ref(false)
+const studyCountOpen = ref(false)
 const subAccountOpen = ref(false)
 const activationAssignOpen = ref(false)
 const editingCourseId = ref('')
@@ -1771,6 +1794,8 @@ const courseForm = reactive(defaultCourseForm())
 const docForm = reactive(defaultDocForm())
 const questionForm = reactive(defaultQuestionForm())
 const userEditForm = reactive(defaultUserEditForm())
+const studyCountForm = reactive({ id: '', courseName: '', studyCount: 0 })
+const studyCountSaving = ref(false)
 const orderSubmitting = ref(false)
 const orderRecordTab = ref('orders')
 const selectedUserStats = ref(null)
@@ -2961,6 +2986,30 @@ async function submitCourse() {
   await Promise.all([loadCourses(), loadCourseOptions(), loadDashboard()])
 }
 
+function openStudyCountDialog(row) {
+  Object.assign(studyCountForm, {
+    id: row.id,
+    courseName: row.courseName || row.title || '',
+    studyCount: Number(row.studyCount || 0)
+  })
+  studyCountOpen.value = true
+}
+
+async function submitStudyCount() {
+  if (!studyCountForm.id) return
+  studyCountSaving.value = true
+  try {
+    await updateCourse(studyCountForm.id, {
+      studyCount: Math.max(0, Number(studyCountForm.studyCount || 0))
+    })
+    ElMessage.success('学习人数已更新')
+    studyCountOpen.value = false
+    await Promise.all([loadCourses(), loadCourseOptions(), loadDashboard()])
+  } finally {
+    studyCountSaving.value = false
+  }
+}
+
 async function removeCourse(row) {
   await ElMessageBox.confirm(`确认删除课程「${row.courseName}」吗？`, '提示', { type: 'warning' })
   await deleteCourse(row.id)
@@ -3961,6 +4010,19 @@ function defaultSubAccountForm() {
   border-radius: 8px;
   background: #fff;
   border: 1px solid #e7eaf0;
+}
+
+.study-count-link {
+  padding: 0 4px;
+  font-weight: 700;
+}
+
+.study-count-course-name {
+  min-width: 0;
+  color: #1f2937;
+  font-weight: 600;
+  line-height: 1.5;
+  word-break: break-all;
 }
 
 .permission-checks {
