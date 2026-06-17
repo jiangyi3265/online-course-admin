@@ -690,7 +690,14 @@
                 <el-option label="一年期" value="year" />
                 <el-option label="72小时" value="hours72" />
                 <el-option label="7天卡" value="days7" />
+                <el-option label="月卡" value="month" />
               </el-select>
+            </el-form-item>
+            <el-form-item v-if="activationForm.cardType === 'month'" label="每日时长">
+              <el-select v-model="activationForm.dailyLimitMinutes" style="width: 150px">
+                <el-option v-for="opt in dailyLimitOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+              <div class="field-hint">月卡每日可观看时长上限，以半小时为单位；选「不限时长」则不限制。到达上限当天不能再观看课程。</div>
             </el-form-item>
             <el-form-item label="归属账号ID">
               <el-select v-model="activationForm.ownerUserId" filterable clearable placeholder="可选账号ID/校区" style="width: 180px">
@@ -739,6 +746,7 @@
                 <div class="inline-meta-row">
                   <el-tag :type="activationStatusTagType(row)">{{ activationStatusText(row) }}</el-tag>
                   <span>{{ row.cardTypeText || '-' }}</span>
+                  <span v-if="row.cardType === 'month' && row.dailyLimitMinutes > 0">{{ row.dailyLimitText }}</span>
                 </div>
               </div>
             </template>
@@ -1808,7 +1816,15 @@ const agencyCodePager = reactive(defaultLocalPager(8))
 const orderForm = reactive({ userId: '56596', courseId: 'gk-math-full', cardCode: '', cardType: 'year', studentName: '', gender: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
 const codeActivateForm = reactive({ userId: '56596', code: '', courseId: '', studentName: '', gender: '', recentExamScore: '', grade: '', schoolName: '', region: '' })
 const activationQuery = reactive({ keyword: '', status: '', owner: '' })
-const activationForm = reactive({ id: '', code: '', courseId: '', cardType: 'year', ownerUserId: '', status: 'available', remark: '' })
+const activationForm = reactive({ id: '', code: '', courseId: '', cardType: 'year', dailyLimitMinutes: 0, ownerUserId: '', status: 'available', remark: '' })
+// 月卡每日观看时长上限选项（半小时为单位）
+const dailyLimitOptions = (() => {
+  const list = [{ value: 0, label: '不限时长' }]
+  for (let m = 30; m <= 480; m += 30) {
+    list.push({ value: m, label: (m % 60 === 0 ? (m / 60) : (m / 60).toFixed(1)) + ' 小时' })
+  }
+  return list
+})()
 const activationAssignForm = reactive({ id: '', code: '', ownerUserId: '' })
 const subAccountForm = reactive(defaultSubAccountForm())
 const subAccountSaving = ref(false)
@@ -3331,7 +3347,7 @@ async function submitActivationCode() {
   }
   await saveActivationCode({ ...activationForm })
   ElMessage.success('激活码已保存')
-  Object.assign(activationForm, { id: '', code: '', courseId: '', cardType: 'year', ownerUserId: '', status: 'available', remark: '' })
+  Object.assign(activationForm, { id: '', code: '', courseId: '', cardType: 'year', dailyLimitMinutes: 0, ownerUserId: '', status: 'available', remark: '' })
   await Promise.all([loadActivationData(), loadDashboard(), loadAgencyData()])
 }
 
