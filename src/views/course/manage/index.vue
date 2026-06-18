@@ -4761,7 +4761,7 @@ function defaultSubAccountForm() {
 
 .chapter-editor {
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
+  grid-template-columns: minmax(400px, 430px) minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -4813,7 +4813,7 @@ function defaultSubAccountForm() {
 
 .chapter-card {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 74px 58px;
+  grid-template-columns: 72px minmax(170px, 1fr) 74px 58px;
   align-items: center;
   gap: 8px;
   padding: 10px;
