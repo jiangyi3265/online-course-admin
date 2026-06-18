@@ -129,6 +129,13 @@ export function closeActivationCodeAuthorization(id) {
   })
 }
 
+export function clearActivationStudyRecords(id) {
+  return request({
+    url: `/course/admin/activation-codes/${id}/clear-study-records`,
+    method: 'post',
+  })
+}
+
 export function activateCourseByCode(data) {
   return request({
     url: '/course/admin/activate',

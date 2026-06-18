@@ -776,6 +776,7 @@
                 <el-button v-if="canAssignActivation(row)" link type="primary" @click="openActivationAssign(row)">分配</el-button>
                 <el-button link :type="isActivationLocked(row) ? 'success' : 'warning'" @click="toggleActivationLock(row)">{{ isActivationLocked(row) ? '解锁' : '锁定' }}</el-button>
                 <el-button v-if="canUnassignActivation(row)" link type="info" @click="unassignActivationCode(row)">取消分配</el-button>
+                <el-button v-if="row.usedByUserId" link type="warning" @click="clearStudentRecords(row)">清除记录</el-button>
                 <el-button v-if="row.status === 'used'" link type="danger" :disabled="row.authorizationClosed" @click="closeActivationAuthorization(row)">{{ row.authorizationClosed ? '已关闭授权' : '关闭授权' }}</el-button>
                 <el-button v-else link type="danger" @click="removeActivationCode(row)">删除</el-button>
               </div>
@@ -1723,6 +1724,7 @@ import {
   addSubAccount,
   activateCourseByCode,
   closeActivationCodeAuthorization,
+  clearActivationStudyRecords,
   closeOrder,
   deleteActivationCode,
   deleteCourse,
@@ -3397,6 +3399,17 @@ async function removeActivationCode(row) {
   await deleteActivationCode(row.id)
   ElMessage.success('激活码已删除')
   await Promise.all([loadActivationData(), loadDashboard(), loadAgencyData()])
+}
+
+async function clearStudentRecords(row) {
+  await ElMessageBox.confirm(
+    `确认清除学生「${row.studentName || row.usedByUserId}」在《${row.courseTitle || '该课程'}》的全部学习记录吗？此操作不可恢复。`,
+    '清除学习记录',
+    { type: 'warning', confirmButtonText: '确定清除' }
+  )
+  await clearActivationStudyRecords(row.id)
+  ElMessage.success('学习记录已清除')
+  await loadDashboard()
 }
 
 async function setAgencyAdmin(row) {
