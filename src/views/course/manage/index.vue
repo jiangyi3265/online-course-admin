@@ -1189,7 +1189,10 @@
 
                 <div v-if="!activeLessons.length" class="empty-editor">当前章节还没有内容。</div>
                 <div v-for="(lesson, index) in activeLessons" :key="index" class="lesson-row">
-                  <el-input v-model="lesson.title" placeholder="输入章节内容名称" class="lesson-title-input" />
+                  <div class="lesson-title-cell">
+                    <el-input v-model="lesson.title" placeholder="输入章节内容名称" class="lesson-title-input" />
+                    <el-button type="danger" plain icon="Delete" class="lesson-delete-action" @click="removeCourseLesson(index)">删除小节</el-button>
+                  </div>
                   <el-input-number v-model="lesson.sort" :min="1" controls-position="right" placeholder="排序" class="lesson-sort-input" />
                   <el-switch v-model="lesson.visible" inline-prompt active-text="显示" inactive-text="隐藏" class="visibility-switch" />
                   <div class="lesson-video-cell">
@@ -1968,7 +1971,7 @@ const filteredActivationList = computed(() => {
     const statusMatched = !activationQuery.status || rowStatus === activationQuery.status || (activationQuery.status === 'available' && isActivationAvailable(item))
     const ownerMatched = !owner || `${item.ownerUserId || ''} ${item.ownerName || ''}`.toLowerCase().includes(owner)
     return statusMatched && ownerMatched && (!keyword || text.includes(keyword))
-  })
+  }).sort((a, b) => activationSortValue(b) - activationSortValue(a))
 })
 const pagedOrderList = computed(() => paginateRows(orderList.value, orderPager))
 const pagedActivationList = computed(() => paginateRows(filteredActivationList.value, activationPager))
@@ -3722,6 +3725,12 @@ function isPastDate(value = '') {
   return Number.isFinite(time) && time < Date.now()
 }
 
+function activationSortValue(row = {}) {
+  const timeText = row.activatedAt || row.updatedAt || row.createdAt || ''
+  const time = new Date(String(timeText).replace(' ', 'T')).getTime()
+  return Number.isFinite(time) ? time : 0
+}
+
 function activationFilterStatus(row = {}) {
   if (isActivationClosed(row)) return 'closed'
   if (isActivationExpired(row)) return 'expired'
@@ -4848,6 +4857,17 @@ function defaultSubAccountForm() {
   width: 96px;
 }
 
+.lesson-title-cell {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lesson-delete-action {
+  width: 100%;
+  margin-left: 0;
+}
+
 .visibility-switch,
 .child-visible-switch {
   justify-self: center;
@@ -5286,6 +5306,7 @@ function defaultSubAccountForm() {
   }
 
   .lesson-sort-input,
+  .lesson-title-cell,
   .question-bank-input,
   .lesson-title-input,
   .question-picker-filters {
