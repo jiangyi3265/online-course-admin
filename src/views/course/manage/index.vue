@@ -1169,7 +1169,7 @@
                 <el-input v-model="chapter.title" placeholder="输入章节名字" />
                 <el-switch v-model="chapter.visible" inline-prompt active-text="显示" inactive-text="隐藏" class="visibility-switch" />
                 <el-tooltip content="删除章节" placement="top">
-                  <el-button text type="danger" icon="Delete" @click.stop="removeCourseChapter(index)" />
+                  <el-button text type="danger" icon="Delete" @click.stop="removeCourseChapter(index)">删除</el-button>
                 </el-tooltip>
               </div>
             </div>
@@ -1181,7 +1181,10 @@
                     <strong>{{ activeChapter.title || '未命名章节' }}</strong>
                     <span>共 {{ activeLessons.length }} 个内容</span>
                   </div>
-                  <el-button type="primary" icon="Plus" @click="addCourseLesson">增加章节内容</el-button>
+                  <div class="lesson-editor-actions">
+                    <el-button type="danger" plain icon="Delete" @click="removeCourseChapter(activeChapterIndex)">删除章节</el-button>
+                    <el-button type="primary" icon="Plus" @click="addCourseLesson">增加章节内容</el-button>
+                  </div>
                 </div>
 
                 <div v-if="!activeLessons.length" class="empty-editor">当前章节还没有内容。</div>
@@ -4787,9 +4790,21 @@ function defaultSubAccountForm() {
   font-size: 13px;
 }
 
+.lesson-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lesson-editor-actions .el-button {
+  margin-left: 0;
+}
+
 .chapter-card {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 74px 32px;
+  grid-template-columns: 72px minmax(0, 1fr) 74px 58px;
   align-items: center;
   gap: 8px;
   padding: 10px;
