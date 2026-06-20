@@ -1973,7 +1973,8 @@ const filteredActivationList = computed(() => {
     return statusMatched && ownerMatched && (!keyword || text.includes(keyword))
   }).sort((a, b) => activationSortValue(b) - activationSortValue(a))
 })
-const pagedOrderList = computed(() => paginateRows(orderList.value, orderPager))
+const sortedOrderList = computed(() => [...orderList.value].sort((a, b) => orderSortValue(b) - orderSortValue(a)))
+const pagedOrderList = computed(() => paginateRows(sortedOrderList.value, orderPager))
 const pagedActivationList = computed(() => paginateRows(filteredActivationList.value, activationPager))
 const filteredUserList = computed(() => {
   const keyword = userQuery.keyword.trim().toLowerCase()
@@ -3727,6 +3728,12 @@ function isPastDate(value = '') {
 
 function activationSortValue(row = {}) {
   const timeText = row.activatedAt || row.updatedAt || row.createdAt || ''
+  const time = new Date(String(timeText).replace(' ', 'T')).getTime()
+  return Number.isFinite(time) ? time : 0
+}
+
+function orderSortValue(row = {}) {
+  const timeText = row.createdAt || row.activatedAt || row.openedAt || row.updatedAt || row.closedAt || ''
   const time = new Date(String(timeText).replace(' ', 'T')).getTime()
   return Number.isFinite(time) ? time : 0
 }
