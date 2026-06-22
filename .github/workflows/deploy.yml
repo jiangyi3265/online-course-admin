@@ -89,7 +89,34 @@ jobs:
           CONF="/www/server/panel/vhost/nginx/wwwht.yzzhixue.cn.conf"
           MARK_BEGIN="# BEGIN wkht-admin-ssl"
           MARK_END="# END wkht-admin-ssl"
-          cp "$CONF" "$CONF.bak_$(date +%Y%m%d%H%M%S)"
+          mkdir -p "$(dirname "$CONF")"
+          if [ -f "$CONF" ]; then
+            cp "$CONF" "$CONF.bak_$(date +%Y%m%d%H%M%S)"
+          else
+            cat > "$CONF" <<EOF
+          server {
+              listen 80;
+              server_name wwwht.yzzhixue.cn;
+              root $DEPLOY_PATH;
+              index index.html;
+              client_max_body_size 1100m;
+
+              location / {
+                  try_files \$uri \$uri/ /index.html;
+              }
+
+              location /prod-api/ {
+                  client_max_body_size 1100m;
+                  proxy_request_buffering off;
+                  proxy_set_header Host \$http_host;
+                  proxy_set_header X-Real-IP \$remote_addr;
+                  proxy_set_header REMOTE-HOST \$remote_addr;
+                  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                  proxy_pass http://127.0.0.1:8007/;
+              }
+          }
+          EOF
+          fi
           if [ ! -f /etc/letsencrypt/live/wwwht.yzzhixue.cn/fullchain.pem ] && command -v certbot >/dev/null 2>&1; then
             certbot certonly --webroot -w "$DEPLOY_PATH" -d wwwht.yzzhixue.cn --non-interactive --agree-tos -m admin@yzzhixue.cn || true
           fi
@@ -104,6 +131,13 @@ jobs:
             $0 == end { skip=0; next }
             !skip { print }
           ' "$CONF" > "$CONF.tmp"
+          if [ ! -f "$CERT" ] || [ ! -f "$KEY" ]; then
+            mv "$CONF.tmp" "$CONF"
+            echo "SSL certificate not found; leaving HTTP admin vhost active."
+            nginx -t
+            nginx -s reload
+            exit 0
+          fi
           cat >> "$CONF.tmp" <<EOF
           $MARK_BEGIN
           server {
