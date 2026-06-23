@@ -202,6 +202,14 @@ export function getStudyData() {
   })
 }
 
+export function updateAiChat(id, data) {
+  return request({
+    url: `/course/admin/ai-chats/${id}`,
+    method: 'put',
+    data,
+  })
+}
+
 export function getFrontendSettings() {
   return request({
     url: '/course/admin/settings',

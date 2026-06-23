@@ -350,6 +350,7 @@
                 <el-form-item label="卡类型">
                   <el-select v-model="orderForm.cardType">
                     <el-option label="一年期" value="year" />
+                    <el-option label="月卡" value="month" />
                     <el-option label="72小时" value="hours72" />
                     <el-option label="7天卡" value="days7" />
                   </el-select>
@@ -957,7 +958,13 @@
               <el-table :data="studyData.aiChats" height="260">
                 <el-table-column prop="context" label="上下文" width="140" />
                 <el-table-column prop="message" label="问题" show-overflow-tooltip />
+                <el-table-column prop="reply" label="AI回答" show-overflow-tooltip />
                 <el-table-column prop="createdAt" label="时间" width="170" />
+                <el-table-column label="操作" width="90" fixed="right">
+                  <template #default="{ row }">
+                    <el-button link type="primary" @click="openAiChatEdit(row)">编辑</el-button>
+                  </template>
+                </el-table-column>
               </el-table>
             </el-card>
           </el-col>
@@ -1665,7 +1672,7 @@
           <div class="user-course-editor-head">
             <div>
               <strong>已开通课程</strong>
-              <span>多科目用户可分别调整每门课的到期时间。</span>
+              <span>课程到期时间控制前端课程有效期；报名时近期考试分数用于学习报告与统计展示。</span>
             </div>
           </div>
           <div v-if="!userEditForm.activatedCourses.length" class="empty-editor">暂无已开通课程</div>
@@ -1675,8 +1682,8 @@
                 <strong>{{ courseTitle(course) }}</strong>
                 <span>激活码：{{ course.cardCode || '-' }} · 开通：{{ shortDateTime(course.activatedAt || course.openedAt) }}</span>
               </div>
-              <el-date-picker v-model="course.expiresAt" value-format="YYYY-MM-DD" type="date" placeholder="到期日期" style="width: 150px" />
-              <el-input v-model="course.recentExamScore" placeholder="科目分数" style="width: 120px" />
+              <el-date-picker v-model="course.expiresAt" value-format="YYYY-MM-DD" type="date" placeholder="课程到期时间" style="width: 150px" />
+              <el-input v-model="course.recentExamScore" placeholder="报名时近期考试分数" style="width: 150px" />
             </div>
           </div>
         </div>
@@ -1716,6 +1723,24 @@
       <template #footer>
         <el-button @click="studyCountOpen = false">取消</el-button>
         <el-button type="primary" :loading="studyCountSaving" @click="submitStudyCount">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="aiChatEditOpen" title="编辑 AI 问答" width="640px" append-to-body>
+      <el-form :model="aiChatEditForm" label-width="88px">
+        <el-form-item label="上下文">
+          <el-input v-model="aiChatEditForm.context" placeholder="课程或章节上下文" />
+        </el-form-item>
+        <el-form-item label="问题">
+          <el-input v-model="aiChatEditForm.message" type="textarea" :rows="3" placeholder="学生提问内容" />
+        </el-form-item>
+        <el-form-item label="AI回答">
+          <el-input v-model="aiChatEditForm.reply" type="textarea" :rows="5" placeholder="AI回答内容" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="aiChatEditOpen = false">取消</el-button>
+        <el-button type="primary" :loading="aiChatSaving" @click="submitAiChatEdit">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -1758,6 +1783,7 @@ import {
   saveQuestion,
   updateSubAccount,
   updateUserRole,
+  updateAiChat,
   updateCourse
 } from '@/api/course'
 import AgreementEditor from './components/AgreementEditor.vue'
@@ -1803,6 +1829,7 @@ const docOpen = ref(false)
 const questionOpen = ref(false)
 const userEditOpen = ref(false)
 const studyCountOpen = ref(false)
+const aiChatEditOpen = ref(false)
 const subAccountOpen = ref(false)
 const activationAssignOpen = ref(false)
 const editingCourseId = ref('')
@@ -1811,6 +1838,8 @@ const docForm = reactive(defaultDocForm())
 const questionForm = reactive(defaultQuestionForm())
 const userEditForm = reactive(defaultUserEditForm())
 const studyCountForm = reactive({ id: '', courseName: '', studyCount: 0 })
+const aiChatEditForm = reactive({ id: '', context: '', message: '', reply: '' })
+const aiChatSaving = ref(false)
 const studyCountSaving = ref(false)
 const orderSubmitting = ref(false)
 const orderRecordTab = ref('orders')
@@ -2978,6 +3007,36 @@ async function submitUserEdit() {
   if (!userEditForm.id) return
   await saveUser(userEditForm)
   userEditOpen.value = false
+}
+
+function openAiChatEdit(row = {}) {
+  Object.assign(aiChatEditForm, {
+    id: row.id || '',
+    context: row.context || '',
+    message: row.message || '',
+    reply: row.reply || ''
+  })
+  aiChatEditOpen.value = true
+}
+
+async function submitAiChatEdit() {
+  if (!aiChatEditForm.id) {
+    ElMessage.warning('缺少 AI 问答记录ID')
+    return
+  }
+  aiChatSaving.value = true
+  try {
+    await updateAiChat(aiChatEditForm.id, {
+      context: aiChatEditForm.context,
+      message: aiChatEditForm.message,
+      reply: aiChatEditForm.reply
+    })
+    ElMessage.success('AI问答已保存')
+    aiChatEditOpen.value = false
+    await loadStudyData()
+  } finally {
+    aiChatSaving.value = false
+  }
 }
 
 function openCourseDialog(row) {
