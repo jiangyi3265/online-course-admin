@@ -1675,6 +1675,10 @@
               <span>课程到期时间控制前端课程有效期；报名时近期考试分数用于学习报告与统计展示。</span>
             </div>
           </div>
+          <div class="user-course-param-note">
+            <div><strong>课程到期时间</strong><span>到期后前端课程卡会按有效期显示。</span></div>
+            <div><strong>报名时近期考试分数</strong><span>用于学习报告、分校统计和学员基础分记录。</span></div>
+          </div>
           <div v-if="!userEditForm.activatedCourses.length" class="empty-editor">暂无已开通课程</div>
           <div v-else class="user-course-editor-list">
             <div v-for="course in userEditForm.activatedCourses" :key="`${course.courseId}-${course.cardCode || ''}`" class="user-course-editor-row">
@@ -1682,8 +1686,14 @@
                 <strong>{{ courseTitle(course) }}</strong>
                 <span>激活码：{{ course.cardCode || '-' }} · 开通：{{ shortDateTime(course.activatedAt || course.openedAt) }}</span>
               </div>
-              <el-date-picker v-model="course.expiresAt" value-format="YYYY-MM-DD" type="date" placeholder="课程到期时间" style="width: 150px" />
-              <el-input v-model="course.recentExamScore" placeholder="报名时近期考试分数" style="width: 150px" />
+              <div class="user-course-field">
+                <span>课程到期时间</span>
+                <el-date-picker v-model="course.expiresAt" value-format="YYYY-MM-DD" type="date" placeholder="选择到期日期" style="width: 100%" />
+              </div>
+              <div class="user-course-field">
+                <span>报名时近期考试分数</span>
+                <el-input v-model="course.recentExamScore" placeholder="如 60" />
+              </div>
             </div>
           </div>
         </div>
@@ -4607,6 +4617,37 @@ function defaultSubAccountForm() {
   font-size: 12px;
 }
 
+.user-course-param-note {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.user-course-param-note div {
+  padding: 10px 12px;
+  border: 1px solid #e6eef8;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.user-course-param-note strong,
+.user-course-param-note span {
+  display: block;
+}
+
+.user-course-param-note strong {
+  color: #1f2937;
+  font-size: 13px;
+}
+
+.user-course-param-note span {
+  margin-top: 4px;
+  color: #7b8794;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .user-course-editor-list {
   display: grid;
   gap: 10px;
@@ -4614,7 +4655,7 @@ function defaultSubAccountForm() {
 
 .user-course-editor-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px 120px;
+  grid-template-columns: minmax(0, 1fr) 188px 176px;
   align-items: center;
   gap: 10px;
   padding: 10px;
@@ -4643,6 +4684,25 @@ function defaultSubAccountForm() {
   margin-top: 4px;
   color: #8a94a6;
   font-size: 12px;
+}
+
+.user-course-field {
+  min-width: 0;
+}
+
+.user-course-field > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .user-course-editor-row,
+  .user-course-param-note {
+    grid-template-columns: 1fr;
+  }
 }
 
 .agency-cards {
