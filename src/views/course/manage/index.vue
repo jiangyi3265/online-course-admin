@@ -944,11 +944,33 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-card shadow="never" class="admin-block">
-              <template #header>课时评价</template>
-              <el-table :data="studyData.lessonRatings" height="260">
-                <el-table-column prop="lessonTitle" label="课时" />
-                <el-table-column prop="rating" label="星级" width="90" />
-                <el-table-column prop="updatedAt" label="时间" width="170" />
+              <template #header>意见反馈</template>
+              <el-table :data="studyData.feedbacks" height="260">
+                <el-table-column label="用户" width="150">
+                  <template #default="{ row }">
+                    <div>{{ row.userName || row.name || row.userId || '-' }}</div>
+                    <div class="muted-line">{{ row.phone || '-' }}</div>
+                    <div class="muted-line">{{ row.wechat || '-' }}</div>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="content" label="反馈内容" min-width="180" show-overflow-tooltip />
+                <el-table-column label="图片" width="150">
+                  <template #default="{ row }">
+                    <div v-if="mediaList(row.images).length" class="feedback-images">
+                      <el-image
+                        v-for="(img, index) in mediaList(row.images)"
+                        :key="`${row.id || row.createdAt || 'feedback'}-${index}`"
+                        class="feedback-thumb"
+                        :src="mediaUrl(img)"
+                        :preview-src-list="mediaList(row.images).map(mediaUrl)"
+                        preview-teleported
+                        fit="cover"
+                      />
+                    </div>
+                    <span v-else>-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="createdAt" label="时间" width="170" />
               </el-table>
             </el-card>
           </el-col>
@@ -1678,6 +1700,7 @@
           <div class="user-course-param-note">
             <div><strong>课程到期时间</strong><span>到期后前端课程卡会按有效期显示。</span></div>
             <div><strong>报名时近期考试分数</strong><span>用于学习报告、分校统计和学员基础分记录。</span></div>
+            <div><strong>每日学习时长</strong><span>按分钟设置月卡每天可学习时长，用于前端学习限制与统计。</span></div>
           </div>
           <div v-if="!userEditForm.activatedCourses.length" class="empty-editor">暂无已开通课程</div>
           <div v-else class="user-course-editor-list">
@@ -1693,6 +1716,10 @@
               <div class="user-course-field">
                 <span>报名时近期考试分数</span>
                 <el-input v-model="course.recentExamScore" placeholder="如 60" />
+              </div>
+              <div class="user-course-field">
+                <span>每日学习时长（分钟）</span>
+                <el-input-number v-model="course.dailyLimitMinutes" :min="0" :step="5" controls-position="right" style="width: 100%" />
               </div>
             </div>
           </div>
@@ -1828,6 +1855,7 @@ const studyData = reactive({
   wrongQuestions: [],
   lessonProgress: [],
   lessonRatings: [],
+  feedbacks: [],
   aiChats: [],
   operationLogs: []
 })
@@ -2929,6 +2957,11 @@ function editableLessonCount(chapters = []) {
 function coursePayloadForSave() {
   normalizeCourseFormContent()
   const payload = JSON.parse(JSON.stringify(courseForm))
+  const intro = String(payload.introduction || payload.intro || payload.description || payload.sub || '').trim()
+  payload.introduction = intro
+  payload.intro = intro
+  payload.description = intro
+  payload.sub = intro
   payload.totalLessons = editableLessonCount((payload.versions && payload.versions[0] && payload.versions[0].chapters) || payload.chapters || [])
   return payload
 }
@@ -3943,7 +3976,8 @@ function editableActivatedCourses(courses = []) {
     activatedAt: course.activatedAt || '',
     openedAt: course.openedAt || '',
     expiresAt: dateOnly(course.expiresAt || course.expiry),
-    recentExamScore: course.recentExamScore || ''
+    recentExamScore: course.recentExamScore || '',
+    dailyLimitMinutes: Number(course.dailyLimitMinutes || 0)
   }))
 }
 
@@ -4295,6 +4329,25 @@ function defaultSubAccountForm() {
 .admin-block {
   margin-bottom: 16px;
   border-radius: 8px;
+}
+
+.muted-line {
+  margin-top: 2px;
+  color: #8a94a6;
+  font-size: 12px;
+}
+
+.feedback-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.feedback-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
 }
 
 .dense-form {
