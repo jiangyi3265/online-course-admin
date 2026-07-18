@@ -956,16 +956,18 @@
                 <el-table-column prop="content" label="反馈内容" min-width="180" show-overflow-tooltip />
                 <el-table-column label="图片" width="150">
                   <template #default="{ row }">
-                    <div v-if="mediaList(row.images).length" class="feedback-images">
+                    <div v-if="feedbackImageUrls(row).length" class="feedback-images">
                       <el-image
-                        v-for="(img, index) in mediaList(row.images)"
+                        v-for="(img, index) in feedbackImageUrls(row)"
                         :key="`${row.id || row.createdAt || 'feedback'}-${index}`"
                         class="feedback-thumb"
-                        :src="mediaUrl(img)"
-                        :preview-src-list="mediaList(row.images).map(mediaUrl)"
+                        :src="img"
+                        :preview-src-list="feedbackImageUrls(row)"
+                        :initial-index="index"
                         preview-teleported
                         fit="cover"
                       />
+                      <span class="feedback-image-count">{{ feedbackImageUrls(row).length }}张</span>
                     </div>
                     <span v-else>-</span>
                   </template>
@@ -3657,11 +3659,21 @@ function questionTypeTag(row = {}) {
 
 function mediaList(value) {
   if (Array.isArray(value)) {
-    return value.map(item => String(item || '').trim()).filter(Boolean)
+    return [...new Set(value.flatMap(item => mediaList(item)).filter(Boolean))]
   }
-  return String(value || '')
+  if (value && typeof value === 'object') {
+    return mediaList(value.url || value.fileName || value.path || value.src || value.value || '')
+  }
+  const text = String(value || '').trim()
+  if (!text) return []
+  if ((text.startsWith('[') && text.endsWith(']')) || (text.startsWith('{') && text.endsWith('}'))) {
+    try {
+      return mediaList(JSON.parse(text))
+    } catch (error) {}
+  }
+  return text
     .split(/[\n,]/)
-    .map(item => item.trim())
+    .map(item => item.trim().replace(/^["']|["']$/g, ''))
     .filter(Boolean)
 }
 
@@ -3670,10 +3682,32 @@ function mediaListText(value) {
 }
 
 function mediaUrl(value = '') {
-  const url = String(value || '').trim()
+  let url = String(value || '').trim().replace(/\\/g, '/')
   if (!url) return ''
-  if (/^(https?:|data:|blob:)/i.test(url)) return url
-  return `${mediaBaseUrl}${url.startsWith('/') ? url : `/${url}`}`
+  if (/^(data:|blob:|file:)/i.test(url)) return ''
+  if (/^https?:/i.test(url)) {
+    try {
+      const parsed = new URL(url)
+      const isLoopback = /^(127\.0\.0\.1|localhost)$/i.test(parsed.hostname)
+      if (!isLoopback) return parsed.toString()
+      url = `${parsed.pathname}${parsed.search}${parsed.hash}`
+    } catch (error) {
+      return url
+    }
+  }
+  const path = url.startsWith('/') ? url : `/${url}`
+  if (/^\/(prod-api|dev-api|stage-api)\//i.test(path)) return path
+  if (/^\/course\/app\/media(?:\?|$)/i.test(path)) return `${mediaBaseUrl}${path}`
+  if (/^\/(profile|avatar|upload|uploads)\//i.test(path)) {
+    return `${mediaBaseUrl}/course/app/media?path=${encodeURIComponent(path)}`
+  }
+  return `${mediaBaseUrl}${path}`
+}
+
+function feedbackImageUrls(row = {}) {
+  return mediaList([row.images, row.imageUrls, row.photos, row.photoUrls, row.imageUrl])
+    .map(mediaUrl)
+    .filter(Boolean)
 }
 
 function optionImageList(row = {}) {
@@ -4339,6 +4373,7 @@ function defaultSubAccountForm() {
 
 .feedback-images {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 6px;
 }
@@ -4348,6 +4383,12 @@ function defaultSubAccountForm() {
   height: 36px;
   border-radius: 4px;
   border: 1px solid #e5e7eb;
+  cursor: zoom-in;
+}
+
+.feedback-image-count {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .dense-form {
