@@ -1123,7 +1123,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="courseOpen" :title="courseForm.id ? '编辑课程' : '新增课程'" width="1120px" class="course-edit-dialog" append-to-body>
+    <el-dialog v-model="courseOpen" :title="courseForm.id ? '编辑课程' : '新增课程'" width="min(1380px, 94vw)" class="course-edit-dialog" append-to-body>
       <el-form :model="courseForm" label-width="96px" class="course-edit-form">
         <div class="course-edit-section base-section">
           <div class="section-title">课程基础信息</div>
